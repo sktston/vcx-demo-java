@@ -17,7 +17,7 @@ repositories {
 
 dependencies {
     // wrapper for vcx library
-    implementation 'com.evernym:vcx:0.8.0' // use maven repository
+    implementation 'com.evernym:vcx:0.8.0-sktston-SNAPSHOT' // use maven repository
     //implementation fileTree(dir: '../build/libs', include: ['*.jar']) // use local lib
 
     // logger
