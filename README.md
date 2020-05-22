@@ -65,7 +65,6 @@ Once you have that ready, use these commands to start demo in postgres mode.
 ### (Temporal) New DID registration demo
 Since LibVCX does not provide APIs to register a new DID, this code was written using LibIndy.
 
-Note that unlike other demos, this code reads the `genesis.txn` file to access the ledger.
 - Usage (default) - SEED (Keyphrase of DID): Random, ROLE: ENDORSER, ALIAS: null
 ```
 ./gradlew register_did

@@ -42,7 +42,7 @@ public class Alice {
                 "  wallet_name: 'node_vcx_demo_alice_wallet_" + utime + "'," +
                 "  wallet_key: '123'," +
                 "  payment_method: 'null'," +
-                "  enterprise_seed: '000000000000000000000000Trustee1'" +
+                "  enterprise_seed: '000000000000000000000000000User1'" + // SEED of alice's DID that does not need to be registered in the ledger
                 "}");
 
         // Communication method. aries.
@@ -66,8 +66,8 @@ public class Alice {
         vcxConfig.put("$", "institution_name", "alice")
                 .put("$", "institution_logo_url", "http://robohash.org/345")
                 .put("$", "protocol_version", "2")
-                .put("$", "genesis_path", "http://54.180.86.51/genesis"); // skt testnet
-        //.put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn"); // use local
+                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis-testnet.txn"); // skt testnet
+                //.put("$", "genesis_path", System.getProperty("user.dir") + "/genesis-local.txn"); // use local
         logger.info("#9 Initialize libvcx with new configuration\n" + prettyJson(vcxConfig.jsonString()));
         VcxApi.vcxInitWithConfig(vcxConfig.jsonString()).get();
 

@@ -45,7 +45,7 @@ public class Faber {
                 "  wallet_name: 'node_vcx_demo_faber_wallet_" + utime + "'," +
                 "  wallet_key: '123'," +
                 "  payment_method: 'null'," +
-                "  enterprise_seed: '000000000000000000000000Trustee1'" +
+                "  enterprise_seed: '000000000000000000000000Steward1'" + // SEED of faber's DID already registered in the ledger
                 "}");
 
         // Communication method. aries.
@@ -69,8 +69,8 @@ public class Faber {
         vcxConfig.put("$", "institution_name", "faber")
                 .put("$", "institution_logo_url", "http://robohash.org/234")
                 .put("$", "protocol_version", "2")
-                .put("$", "genesis_path", "http://54.180.86.51/genesis"); // skt testnet
-                //.put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn"); // use local
+                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis-testnet.txn"); // skt testnet
+                //.put("$", "genesis_path", System.getProperty("user.dir") + "/genesis-local.txn"); // use local
         logger.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig.jsonString()));
         VcxApi.vcxInitWithConfig(vcxConfig.jsonString()).get();
 
