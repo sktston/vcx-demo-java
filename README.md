@@ -54,10 +54,24 @@ You can also run demo in mode where both Faber and Alice are using Postgres wall
 [instructions](https://github.com/hyperledger/indy-sdk/tree/master/experimental/plugins/postgres_storage) to 
 compile postgres wallet plugin and startup local postgres docker container. 
 
-Once yu have that ready, use these commands to start demo in postgres mode.
+Once you have that ready, use these commands to start demo in postgres mode.
 ```
 ./gradlew faber_pg
 ```
 ```
 ./gradlew alice_pg
 ```
+
+### (Temporal) New DID registration demo
+Since LibVCX does not provide APIs to register a new DID, this code was written using LibIndy.
+
+Note that unlike other demos, this code reads the `genesis.txn` file to access the ledger.
+- Usage (default) - SEED (Keyphrase of DID): Random, ROLE: ENDORSER, ALIAS: null
+```
+./gradlew register_did
+```
+- Usage with parameters (can be omitted)
+```
+SEED=00000000000000000000000Endorser1 ROLE=ENDORSER ALIAS=faber ./gradlew register_did
+```
+

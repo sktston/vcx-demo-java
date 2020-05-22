@@ -9,9 +9,13 @@ sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
+    // for vcx java wrapper
     maven {
-        //url "https://repo.sovrin.org/repository/maven-public" // sovrin repo
         url "http://13.125.219.189/repository/maven-public/" // skt-develop repo
+    }
+    // (temporal) indy java wrapper - for register_did
+    maven {
+        url "https://repo.sovrin.org/repository/maven-public" // sovrin repo
     }
 }
 
@@ -19,6 +23,9 @@ dependencies {
     // wrapper for vcx library
     implementation 'com.evernym:vcx:0.8.0-sktston-SNAPSHOT' // use maven repository
     //implementation fileTree(dir: '../build/libs', include: ['*.jar']) // use local lib
+
+    // (temporal) wrapper for indy library - for register_did
+    implementation 'org.hyperledger:indy:1.15.0'
 
     // logger
     implementation 'org.slf4j:slf4j-simple:1.7.25'
@@ -52,4 +59,9 @@ task alice_pg(type:JavaExec) {
     main = 'Alice'
     standardInput = System.in
     args(['--postgres'])
+}
+task register_did(type:JavaExec) {
+    group 'application'
+    classpath sourceSets.main.runtimeClasspath
+    main = 'RegisterDid'
 }
