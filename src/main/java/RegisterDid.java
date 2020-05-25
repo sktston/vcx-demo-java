@@ -17,7 +17,7 @@ public class RegisterDid {
     // get logger for demo - INFO configured
     static final Logger logger = Common.getDemoLogger();
 
-    static final String GENESIS_FILE_PATH = System.getProperty("user.dir") + "/genesis.txn";
+    static final String GENESIS_FILE_PATH = System.getProperty("user.dir") + "/genesis.txn"; // file configured for skt testnet
     static final String POOL_NAME = "default_pool";
     static final String WALLET = "Wallet1";
     static final String TYPE = "default";

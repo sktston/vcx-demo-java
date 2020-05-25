@@ -66,8 +66,8 @@ public class Alice {
         vcxConfig.put("$", "institution_name", "alice")
                 .put("$", "institution_logo_url", "http://robohash.org/345")
                 .put("$", "protocol_version", "2")
-                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis-testnet.txn"); // skt testnet
-                //.put("$", "genesis_path", System.getProperty("user.dir") + "/genesis-local.txn"); // use local
+                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn"); // file configured for skt testnet
+                //.put("$", "genesis_path", "http://54.180.86.51/genesis"); // or url can be configured
         logger.info("#9 Initialize libvcx with new configuration\n" + prettyJson(vcxConfig.jsonString()));
         VcxApi.vcxInitWithConfig(vcxConfig.jsonString()).get();
 
