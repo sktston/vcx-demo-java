@@ -95,7 +95,7 @@ public class Faber {
                 "  schemaId: '" + schemaId + "'," +
                 "  tag: 'tag1'," +
                 "  config: {" +
-                "    support_revocation: false," +
+                "    support_revocation: true," +
                 "    tails_file: '/tmp/tails'," +
                 "    max_creds: 5" +
                 "  }" +
