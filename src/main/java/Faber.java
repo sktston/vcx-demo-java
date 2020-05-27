@@ -204,10 +204,21 @@ public class Faber {
                 "  }" +
                 "]");
 
-        logger.info("#19 Create a Proof object\n" + prettyJson(proofAttributes.jsonString()));
+        DocumentContext proofPredicates = JsonPath.parse("[" +
+                "  {" +
+                "    name: 'age'," +
+                "    p_type: '>='," +
+                "    p_value: 20," +
+                "    restrictions: [{ issuer_did: " + vcxConfig.read("$.institution_did") + " }]" +
+                "  }" +
+                "]");
+
+        logger.info("#19 Create a Proof object\n" +
+                "proofAttributes: " + prettyJson(proofAttributes.jsonString()) + "\n" +
+                "proofPredicates: " + prettyJson(proofPredicates.jsonString()));
         int proofHandle = ProofApi.proofCreate("proof_uuid",
                 proofAttributes.jsonString(),
-                "",
+                proofPredicates.jsonString(),
                 "{}",
                 "proof_from_alice").get();
 
