@@ -21,6 +21,7 @@ import static utils.Common.prettyJson;
 import static utils.Common.getRandomInt;
 import static utils.State.StateType;
 import static utils.State.ProofState;
+import static utils.Common.isPortReachable;
 
 public class Faber {
     // get logger for demo - INFO configured
@@ -63,6 +64,15 @@ public class Faber {
             logger.info("Running with builtin wallet.");
         }
 
+        // add webhook url to config
+        String optionalWebhook = "http://localhost:7209/notifications/faber";
+        if (isPortReachable(optionalWebhook)) {
+            provisionConfig.put("$", "webhook_url", optionalWebhook);
+            logger.info("Running with webhook notifications enabled! Webhook url = " + optionalWebhook);
+        } else {
+            logger.info("Webhook url will not be used");
+        }
+
         logger.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig.jsonString()));
         DocumentContext vcxConfig = JsonPath.parse(UtilsApi.vcxProvisionAgent(provisionConfig.jsonString()));
 
@@ -73,6 +83,10 @@ public class Faber {
                 //.put("$", "genesis_path", "http://54.180.86.51/genesis"); // or url can be configured
         logger.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig.jsonString()));
         VcxApi.vcxInitWithConfig(vcxConfig.jsonString()).get();
+
+        // TODO: may vcxUpdateWebhookUrl is called during vcxInitWithConfig
+        if (isPortReachable(optionalWebhook))
+            VcxApi.vcxUpdateWebhookUrl(optionalWebhook).get();
 
         // define schema with actually needed
         String version = getRandomInt(1, 99) + "." + getRandomInt(1, 99) + "." + getRandomInt(1, 99);

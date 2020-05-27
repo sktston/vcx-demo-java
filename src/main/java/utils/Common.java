@@ -7,6 +7,10 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import org.apache.commons.cli.*;
 
+import java.io.IOException;
+import java.net.Socket;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Random;
 import java.util.logging.*;
 
@@ -96,5 +100,16 @@ public class Common {
             System.err.println("Parsing failed. Reason: " + exp.getMessage());
         }
         return null;
+    }
+
+    public static boolean isPortReachable(String optionalWebhook) {
+        try {
+            URI uri = new URI(optionalWebhook);
+            Socket s = new Socket(uri.getHost(), uri.getPort());
+            return true;
+        } catch (Exception e) {
+            /* ignore */
+        }
+        return false;
     }
 }

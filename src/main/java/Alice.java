@@ -15,6 +15,8 @@ import java.util.Scanner;
 import java.util.logging.Logger;
 
 import utils.Common;
+
+import static utils.Common.isPortReachable;
 import static utils.Common.prettyJson;
 import static utils.State.StateType;
 
@@ -60,6 +62,15 @@ public class Alice {
             logger.info("Running with builtin wallet.");
         }
 
+        // add webhook url to config
+        String optionalWebhook = "http://localhost:7209/notifications/alice";
+        if (isPortReachable(optionalWebhook)) {
+            provisionConfig.put("$", "webhook_url", optionalWebhook);
+            logger.info("Running with webhook notifications enabled! Webhook url = " + optionalWebhook);
+        } else {
+            logger.info("Webhook url will not be used");
+        }
+
         logger.info("#8 Provision an agent and wallet, get back configuration details: \n" + prettyJson(provisionConfig.jsonString()));
         DocumentContext vcxConfig = JsonPath.parse(UtilsApi.vcxProvisionAgent(provisionConfig.jsonString()));
 
@@ -70,6 +81,10 @@ public class Alice {
                 //.put("$", "genesis_path", "http://54.180.86.51/genesis"); // or url can be configured
         logger.info("#9 Initialize libvcx with new configuration\n" + prettyJson(vcxConfig.jsonString()));
         VcxApi.vcxInitWithConfig(vcxConfig.jsonString()).get();
+
+        // TODO: may vcxUpdateWebhookUrl is called during vcxInitWithConfig
+        if (isPortReachable(optionalWebhook))
+            VcxApi.vcxUpdateWebhookUrl(optionalWebhook).get();
 
         logger.info("Input faber invitation details\nEnter your invite details:");
         Scanner sc = new Scanner(System.in);
