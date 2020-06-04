@@ -15,23 +15,12 @@ import java.util.Random;
 import java.util.logging.*;
 
 public class Common {
-    public static void setLibraryLogger(String logLevel) {
-        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, logLevel);
-    }
 
-    public static class LogFormatter extends Formatter {
-        public String format(LogRecord rec) {
-            StringBuffer buf = new StringBuffer(1000);
-
-            buf.append("[").append(rec.getSourceMethodName()).append("] ");
-            buf.append(rec.getLevel()).append(" ").append(rec.getSourceClassName()).append(" - ");
-            buf.append(rec.getMessage()).append("\n");
-
-            return buf.toString();
-        }
-    }
+    static boolean loggerInitialized = false;
 
     public static Logger getDemoLogger() {
+        if (loggerInitialized) return Logger.getGlobal();
+
         // remove rootLogger
         Logger rootLogger = Logger.getLogger("");
         Handler[] handlers = rootLogger.getHandlers();
@@ -46,7 +35,24 @@ public class Common {
         handler.setFormatter(new LogFormatter());
         logger.addHandler(handler);
 
+        loggerInitialized = true;
         return logger;
+    }
+
+    public static void setLibraryLogger(String logLevel) {
+        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, logLevel);
+    }
+
+    public static class LogFormatter extends Formatter {
+        public String format(LogRecord rec) {
+            StringBuffer buf = new StringBuffer(1000);
+
+            buf.append("[").append(rec.getSourceMethodName()).append("] ");
+            buf.append(rec.getLevel()).append(" ").append(rec.getSourceClassName()).append(" - ");
+            buf.append(rec.getMessage()).append("\n");
+
+            return buf.toString();
+        }
     }
 
     public static String prettyJson(String jsonString) {

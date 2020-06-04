@@ -34,6 +34,13 @@ repositories {
 }
 
 dependencies {
+    compile('org.springframework.boot:spring-boot-starter-web') {
+        exclude module: "logback-classic"
+    }
+    testCompile('org.springframework.boot:spring-boot-starter-test') {
+        exclude module: "logback-classic"
+    }
+
     // wrapper for vcx library
     implementation 'com.evernym:vcx:0.8.0-sktston-SNAPSHOT' // use maven repository
     //implementation fileTree(dir: '../build/libs', include: ['*.jar']) // use local lib
@@ -48,13 +55,6 @@ dependencies {
     implementation 'com.jayway.jsonpath:json-path:2.4.0'
     implementation 'com.google.code.gson:gson:2.8.6'
     implementation 'commons-cli:commons-cli:1.4'
-
-    compile('org.springframework.boot:spring-boot-starter-web') {
-        exclude module: "logback-classic"
-    }
-    testCompile('org.springframework.boot:spring-boot-starter-test') {
-        exclude module: "logback-classic"
-    }
 }
 
 task faber(type:JavaExec) {
@@ -86,8 +86,9 @@ task register_did(type:JavaExec) {
     classpath sourceSets.main.runtimeClasspath
     main = 'RegisterDid'
 }
-task notifyserver(type:JavaExec) {
+task webhook_faber(type:JavaExec) {
     group 'application'
     classpath sourceSets.main.runtimeClasspath
-    main = 'notification.Application'
+    main = 'webhook.faber.Application'
+    args(['--spring.config.location=classpath:/application-faber.properties'])
 }
