@@ -1,14 +1,10 @@
 package webhook.faber;
 
-import com.evernym.sdk.vcx.ErrorCode;
-import com.evernym.sdk.vcx.VcxException;
 import com.evernym.sdk.vcx.connection.ConnectionApi;
 import com.evernym.sdk.vcx.credentialDef.CredentialDefApi;
 import com.evernym.sdk.vcx.issuer.IssuerApi;
-import com.evernym.sdk.vcx.proof.DisclosedProofApi;
 import com.evernym.sdk.vcx.proof.GetProofResult;
 import com.evernym.sdk.vcx.proof.ProofApi;
-import com.evernym.sdk.vcx.schema.SchemaApi;
 import com.evernym.sdk.vcx.utils.UtilsApi;
 import com.evernym.sdk.vcx.wallet.WalletApi;
 import com.jayway.jsonpath.DocumentContext;
@@ -28,9 +24,9 @@ import static utils.State.ProofState;
 public class NotificationController {
     // get logger for demo - INFO configured
     static final Logger logger = Common.getDemoLogger();
-    static final Boolean AUTO_SEND_OFFER = true;
-    static final Boolean AUTO_SEND_CREDENTIAL = true;
-    static final Boolean AUTO_SEND_PROOF_REQUEST = true;
+    static final boolean AUTO_SEND_OFFER = true;
+    static final boolean AUTO_SEND_CREDENTIAL = true;
+    static final boolean AUTO_SEND_PROOF_REQUEST = true;
 
     @PostMapping("/notifications")
     public ResponseEntity notificationsHandler(@RequestBody(required = false) NotificationRequestDto body) throws Exception {
@@ -42,7 +38,7 @@ public class NotificationController {
         String pwDid = JsonPath.read(messages,"$.[0].pairwiseDID");
         String connectionRecord = WalletApi.getRecordWallet("connection", pwDid, "").get();
         String connection = JsonPath.read(connectionRecord,"$.value");
-        logger.info("Get record - connection:\n" + prettyJson(connection));
+        //logger.info("Get record - connection:\n" + prettyJson(connection));
 
         LinkedHashMap<String, Object> message = JsonPath.read(messages,"$.[0].msgs[0]");
 
@@ -164,6 +160,8 @@ public class NotificationController {
                         // After issuing credential, issuer does not receive Ack for that
                         // We send proof request here
                         if (AUTO_SEND_PROOF_REQUEST) {
+                            Thread.sleep(1000); // wait 1 sec to get credential at holder
+
                             String vcxConfigRecord = WalletApi.getRecordWallet("vcxConfig", "defaultVcxConfig", "").get();
                             String vcxConfig = JsonPath.read(vcxConfigRecord,"$.value");
                             DocumentContext vcxConfigJson = JsonPath.parse(vcxConfig);
@@ -258,51 +256,6 @@ public class NotificationController {
                     ProofApi.proofRelease(proofHandle);
                     ConnectionApi.connectionRelease(connectionHandle);
                 }
-
-
-
-                // connection response - At Invitee:
-                else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/response")){
-                    int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
-                    int state = ConnectionApi.vcxConnectionUpdateStateWithMessage(connectionHandle, JsonPath.parse(message).jsonString()).get();
-                    connection = ConnectionApi.connectionSerialize(connectionHandle).get();
-                    logger.info("connections/1.0/response - Serialized connection:\n" + prettyJson(connection));
-
-                    if (state == StateType.Accepted) {
-                        connection = ConnectionApi.connectionSerialize(connectionHandle).get();
-                        logger.info( "Serialized connection: " + prettyJson(connection));
-                        WalletApi.updateRecordWallet("connection", pwDid, connection).get();
-                    }
-
-                    ConnectionApi.connectionRelease(connectionHandle);
-                }
-                //ack of proof request
-                else if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/present-proof/1.0/ack")){
-                    String threadId = JsonPath.read(payloadMessage,"$.~thread.thid");
-                    String proofRecord = WalletApi.getRecordWallet("proof", threadId, "").get();
-                    String proof = JsonPath.read(proofRecord,"$.value");
-
-                    int proofHandle = DisclosedProofApi.proofDeserialize(proof).get();
-                    //For now, Java wrapper doesn't implement proofUpdateStateWithMessage API, and it is fixed in https://github.com/hyperledger/indy-sdk/pull/2156
-                    //int state = DisclosedProofApi.proofUpdateStateWithMessage(proofHandle, JsonPath.parse(message).jsonString()).get();
-                    int proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
-
-                    if (proofState == 4) {
-                        logger.info( "Proof is OK");
-                    }
-
-                    DisclosedProofApi.proofRelease(proofHandle);
-                }
-                break;
-            case "credential-offer":
-                //handleCredentialOffer(connection, payloadMessage, pwDid, uid);
-                break;
-            case "credential":
-                //handleCredential(payloadMessage);
-                break;
-            case "presentation-request":
-                //handlePresentationRequest(connection, payloadMessage, pwDid, uid);
-                break;
             default:
 
         }

@@ -1,7 +1,5 @@
 package webhook.faber;
 
-import com.evernym.sdk.vcx.VcxException;
-import com.evernym.sdk.vcx.connection.ConnectionApi;
 import com.evernym.sdk.vcx.credentialDef.CredentialDefApi;
 import com.evernym.sdk.vcx.schema.SchemaApi;
 import com.evernym.sdk.vcx.utils.UtilsApi;
