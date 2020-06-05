@@ -70,7 +70,6 @@ public class InitService {
 
         createSchema();
         createCredentialDefinition();
-        createConnection();
     }
 
     public void createSchema() throws Exception {
@@ -130,32 +129,5 @@ public class InitService {
 
         WalletApi.addRecordWallet("credentialDef", "defaultCredentialDef", credDef).get();
         CredentialDefApi.credentialDefRelease(credDefHandle);
-    }
-
-    public void createConnection() throws Exception {
-        logger.info("#5 Create a connection to alice and print out the invite details");
-        int connectionHandle = ConnectionApi.vcxConnectionCreate("alice").get();
-        ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
-        ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
-
-        DocumentContext result = JsonPath.parse(ConnectionApi.connectionInfo(connectionHandle).get());
-        logger.info("**connectionInfo**");
-        logger.info(prettyJson(result.jsonString()));
-
-        String connection = ConnectionApi.connectionSerialize(connectionHandle).get();
-        logger.info("Serialized connection: \n" + prettyJson(connection));
-
-        DocumentContext details = JsonPath.parse(ConnectionApi.connectionInviteDetails(connectionHandle, 0).get());
-        logger.info("\n**invite details**");
-        logger.info("**You'll be queried to paste this data to alice side of the demo. This is invitation to connect.**");
-        logger.info("**It's assumed this is obtained by Alice from Faber by some existing secure channel.**");
-        logger.info("**Could be on website via HTTPS, QR code scanned at Faber institution, ...**");
-        logger.info("\n******************\n");
-        logger.info(details.jsonString());
-        logger.info("\n******************\n");
-
-        String pwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
-        WalletApi.addRecordWallet("connection", pwDid, connection).get();
-        ConnectionApi.connectionRelease(connectionHandle);
     }
 }

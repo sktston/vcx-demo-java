@@ -309,4 +309,22 @@ public class NotificationController {
 
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("create-invitation")
+    public String createInvitationHandler() throws Exception{
+        logger.info("createInvitationHandler called");
+        int connectionHandle = ConnectionApi.vcxConnectionCreate("alice").get();
+        ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
+        ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
+
+        DocumentContext details = JsonPath.parse(ConnectionApi.connectionInviteDetails(connectionHandle, 0).get());
+
+        String connection = ConnectionApi.connectionSerialize(connectionHandle).get();
+        String pwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
+        logger.info("Add record - connection: \n" + prettyJson(connection));
+        WalletApi.addRecordWallet("connection", pwDid, connection).get();
+        ConnectionApi.connectionRelease(connectionHandle);
+
+        return details.jsonString();
+    }
 }
