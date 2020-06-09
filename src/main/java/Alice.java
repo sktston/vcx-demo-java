@@ -4,7 +4,6 @@ import com.evernym.sdk.vcx.proof.DisclosedProofApi;
 import com.evernym.sdk.vcx.utils.UtilsApi;
 import com.evernym.sdk.vcx.vcx.VcxApi;
 
-import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 
 import org.apache.commons.cli.CommandLine;
@@ -16,7 +15,6 @@ import java.util.logging.Logger;
 
 import utils.Common;
 
-import static utils.Common.isPortReachable;
 import static utils.Common.prettyJson;
 import static utils.State.StateType;
 
@@ -36,7 +34,7 @@ public class Alice {
 
         // static configuration
         long utime = System.currentTimeMillis() / 1000;
-        DocumentContext provisionConfig = JsonPath.parse("{" +
+        String provisionConfig = JsonPath.parse("{" +
                 "  agency_url: 'http://15.165.161.165:8080'," + // skt test dummy cloud agent
                 //"  agency_url: 'http://localhost:8080'," + // use local
                 "  agency_did: 'VsKV7grR1BUE29mG2Fm2kX'," +
@@ -45,119 +43,100 @@ public class Alice {
                 "  wallet_key: '123'," +
                 "  payment_method: 'null'," +
                 "  enterprise_seed: '000000000000000000000000000User1'" + // SEED of alice's DID that does not need to be registered in the ledger
-                "}");
+                "}").jsonString();
 
         // Communication method. aries.
-        provisionConfig.put("$", "protocol_type", "3.0");
+        provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "3.0").jsonString();
         logger.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 3.0");
 
         if (options.hasOption("postgres")) {
             Common.loadPostgresPlugin();
-            provisionConfig.put("$", "wallet_type", "postgres_storage")
+            provisionConfig = JsonPath.parse(provisionConfig).put("$", "wallet_type", "postgres_storage")
                     .put("$", "storage_config", "{\"url\":\"localhost:5432\"}")
                     .put("$", "storage_credentials", "{\"account\":\"postgres\",\"password\":\"mysecretpassword\"," +
-                            "\"admin_account\":\"postgres\",\"admin_password\":\"mysecretpassword\"}");
-            logger.info("Running with PostreSQL wallet enabled! Config = " + provisionConfig.read("$.storage_config"));
+                            "\"admin_account\":\"postgres\",\"admin_password\":\"mysecretpassword\"}").jsonString();
+            logger.info("Running with PostreSQL wallet enabled! Config = " + JsonPath.read(provisionConfig, "$.storage_config"));
         } else {
             logger.info("Running with builtin wallet.");
         }
 
-        // add webhook url to config
-        String optionalWebhook = "http://localhost:7209/notifications/alice";
-        if (isPortReachable(optionalWebhook)) {
-            provisionConfig.put("$", "webhook_url", optionalWebhook);
-            logger.info("Running with webhook notifications enabled! Webhook url = " + optionalWebhook);
-        } else {
-            logger.info("Webhook url will not be used");
-        }
+        logger.info("#8 Provision an agent and wallet, get back configuration details: \n" + prettyJson(provisionConfig));
+        String vcxConfig = UtilsApi.vcxProvisionAgent(provisionConfig);
 
-        logger.info("#8 Provision an agent and wallet, get back configuration details: \n" + prettyJson(provisionConfig.jsonString()));
-        DocumentContext vcxConfig = JsonPath.parse(UtilsApi.vcxProvisionAgent(provisionConfig.jsonString()));
-
-        vcxConfig.put("$", "institution_name", "alice")
+        vcxConfig = JsonPath.parse(vcxConfig).put("$", "institution_name", "alice")
                 .put("$", "institution_logo_url", "http://robohash.org/345")
                 .put("$", "protocol_version", "2")
-                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn"); // file configured for skt testnet
-                //.put("$", "genesis_path", "http://54.180.86.51/genesis"); // or url can be configured
-        logger.info("#9 Initialize libvcx with new configuration\n" + prettyJson(vcxConfig.jsonString()));
-        VcxApi.vcxInitWithConfig(vcxConfig.jsonString()).get();
-
-        // TODO: may vcxUpdateWebhookUrl is called during vcxInitWithConfig
-        if (isPortReachable(optionalWebhook))
-            VcxApi.vcxUpdateWebhookUrl(optionalWebhook).get();
+                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn").jsonString(); // file configured for skt testnet
+                //.put("$", "genesis_path", "http://54.180.86.51/genesis").jsonString(); // or url can be configured
+        logger.info("#9 Initialize libvcx with new configuration\n" + prettyJson(vcxConfig));
+        VcxApi.vcxInitWithConfig(vcxConfig).get();
 
         logger.info("Input faber invitation details\nEnter your invite details:");
         Scanner sc = new Scanner(System.in);
-        DocumentContext details = JsonPath.parse(sc.nextLine());
+        String details = sc.nextLine();
 
         logger.info("#10 Convert to valid json and string and create a connection to faber");
-        int connectionHandle = ConnectionApi.vcxCreateConnectionWithInvite("faber", details.jsonString()).get();
+        int connectionHandle = ConnectionApi.vcxCreateConnectionWithInvite("faber", details).get();
         ConnectionApi.vcxConnectionConnect(connectionHandle, "{\"use_public_did\": true}").get();
-        ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
-        int connectionState = ConnectionApi.connectionGetState(connectionHandle).get();
+        int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         while (connectionState != StateType.Accepted) {
             Thread.sleep(2000);
-            ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
-            connectionState = ConnectionApi.connectionGetState(connectionHandle).get();
+            connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         }
 
         logger.info("#11 Wait for faber to issue a credential offer");
         Thread.sleep(5000);
-        DocumentContext offers = JsonPath.parse(CredentialApi.credentialGetOffers(connectionHandle).get());
-        logger.info("Alice found " + offers.read("$.length()") + " credential offers.");
-        DocumentContext credentialOffer = JsonPath.parse((List)offers.read("$.[0]"));
-        logger.info("credential offer:\n" + prettyJson(credentialOffer.jsonString()));
+        String offers = CredentialApi.credentialGetOffers(connectionHandle).get();
+        logger.info("Alice found " + JsonPath.read(offers, "$.length()") + " credential offers.");
+        String credentialOffer = JsonPath.parse((List)JsonPath.read(offers, "$.[0]")).jsonString();
+        logger.info("credential offer:\n" + prettyJson(credentialOffer));
 
         // Create a credential object from the credential offer
-        int credentialHandle = CredentialApi.credentialCreateWithOffer("credential", credentialOffer.jsonString()).get();
+        int credentialHandle = CredentialApi.credentialCreateWithOffer("credential", credentialOffer).get();
 
         logger.info("#15 After receiving credential offer, send credential request");
         CredentialApi.credentialSendRequest(credentialHandle, connectionHandle, 0).get();
 
         logger.info("#16 Poll agency and accept credential from faber");
-        CredentialApi.credentialUpdateState(credentialHandle).get();
-        int credentialState = CredentialApi.credentialGetState(credentialHandle).get();
+        int credentialState = CredentialApi.credentialUpdateState(credentialHandle).get();
         while (credentialState != StateType.Accepted) {
             Thread.sleep(2000);
-            CredentialApi.credentialUpdateState(credentialHandle).get();
-            credentialState = CredentialApi.credentialGetState(credentialHandle).get();
+            credentialState = CredentialApi.credentialUpdateState(credentialHandle).get();
         }
 
         logger.info("#22 Poll agency for a proof request");
-        DocumentContext requests = JsonPath.parse(DisclosedProofApi.proofGetRequests(connectionHandle).get());
-        while (requests.read("$.length()").equals("0")) {
+        String requests = DisclosedProofApi.proofGetRequests(connectionHandle).get();
+        while (JsonPath.read(requests, "$.length()").equals("0")) {
             Thread.sleep(2000);
-            requests = JsonPath.parse(DisclosedProofApi.proofGetRequests(connectionHandle).get());
+            requests = DisclosedProofApi.proofGetRequests(connectionHandle).get();
         }
-        logger.info("Alice found " + requests.read("$.length()") + " proof requests.");
-        DocumentContext proofRequest = JsonPath.parse((LinkedHashMap)requests.read("$.[0]"));
-        logger.info("proof request:\n" + prettyJson(proofRequest.jsonString()));
+        logger.info("Alice found " + JsonPath.read(requests, "$.length()") + " proof requests.");
+        String proofRequest = JsonPath.parse((LinkedHashMap)JsonPath.read(requests, "$.[0]")).jsonString();
+        logger.info("proof request:\n" + prettyJson(proofRequest));
 
         logger.info("#23 Create a Disclosed proof object from proof request");
-        int proofHandle = DisclosedProofApi.proofCreateWithRequest("proof", proofRequest.jsonString()).get();
+        int proofHandle = DisclosedProofApi.proofCreateWithRequest("proof", proofRequest).get();
 
         logger.info("#24 Query for credentials in the wallet that satisfy the proof request");
-        DocumentContext credentials = JsonPath.parse(DisclosedProofApi.proofRetrieveCredentials(proofHandle).get());
+        String credentials = DisclosedProofApi.proofRetrieveCredentials(proofHandle).get();
 
-        LinkedHashMap<String, Object> attrs = credentials.read("$.attrs");
+        LinkedHashMap<String, Object> attrs = JsonPath.read(credentials, "$.attrs");
         for(String key : attrs.keySet()){
-            DocumentContext attr = JsonPath.parse((LinkedHashMap)credentials.read("$.attrs." + key + ".[0]"));
-            credentials.set("$.attrs." + key, JsonPath.parse("{\"credential\":"+ attr.jsonString() + "}").json());
+            String attr = JsonPath.parse((LinkedHashMap)JsonPath.read(credentials, "$.attrs." + key + ".[0]")).jsonString();
+            credentials = JsonPath.parse(credentials).set("$.attrs." + key, JsonPath.parse("{\"credential\":"+ attr + "}").json()).jsonString();
         }
 
         logger.info("#25 Generate the proof");
-        DisclosedProofApi.proofGenerate(proofHandle, credentials.jsonString(), "{}").get();
+        DisclosedProofApi.proofGenerate(proofHandle, credentials, "{}").get();
 
         logger.info("#26 Send the proof to faber");
         DisclosedProofApi.proofSend(proofHandle, connectionHandle).get();
 
         logger.info("#27 Wait for Faber to receive the proof");
-        DisclosedProofApi.proofUpdateState(proofHandle).get();
-        int proofState = DisclosedProofApi.proofGetState(proofHandle).get();
+        int proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
         while (proofState != StateType.Accepted) {
             Thread.sleep(2000);
-            DisclosedProofApi.proofUpdateState(proofHandle).get();
-            proofState = DisclosedProofApi.proofGetState(proofHandle).get();
+            proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
         }
         logger.info("Faber received the proof");
 

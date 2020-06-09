@@ -7,7 +7,6 @@ import com.evernym.sdk.vcx.schema.SchemaApi;
 import com.evernym.sdk.vcx.utils.UtilsApi;
 import com.evernym.sdk.vcx.vcx.VcxApi;
 
-import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 
 import org.apache.commons.cli.CommandLine;
@@ -21,7 +20,6 @@ import static utils.Common.prettyJson;
 import static utils.Common.getRandomInt;
 import static utils.State.StateType;
 import static utils.State.ProofState;
-import static utils.Common.isPortReachable;
 
 public class Faber {
     // get logger for demo - INFO configured
@@ -38,7 +36,7 @@ public class Faber {
         Common.loadNullPayPlugin();
 
         long utime = System.currentTimeMillis() / 1000;
-        DocumentContext provisionConfig  = JsonPath.parse("{" +
+        String provisionConfig  = JsonPath.parse("{" +
                 "  agency_url: 'http://15.165.161.165:8080'," + // skt test dummy cloud agent
                 //"  agency_url: 'http://localhost:8080'," + // use local
                 "  agency_did: 'VsKV7grR1BUE29mG2Fm2kX'," +
@@ -47,65 +45,52 @@ public class Faber {
                 "  wallet_key: '123'," +
                 "  payment_method: 'null'," +
                 "  enterprise_seed: '000000000000000000000000Steward1'" + // SEED of faber's DID already registered in the ledger
-                "}");
+                "}").jsonString();
 
         // Communication method. aries.
-        provisionConfig.put("$", "protocol_type", "3.0");
+        provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "3.0").jsonString();
         logger.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 3.0");
 
         if (options.hasOption("postgres")) {
             Common.loadPostgresPlugin();
-            provisionConfig.put("$", "wallet_type", "postgres_storage")
+            provisionConfig = JsonPath.parse(provisionConfig).put("$", "wallet_type", "postgres_storage")
                     .put("$", "storage_config", "{\"url\":\"localhost:5432\"}")
                     .put("$", "storage_credentials", "{\"account\":\"postgres\",\"password\":\"mysecretpassword\"," +
-                            "\"admin_account\":\"postgres\",\"admin_password\":\"mysecretpassword\"}");
-            logger.info("Running with PostreSQL wallet enabled! Config = " + provisionConfig.read("$.storage_config"));
+                            "\"admin_account\":\"postgres\",\"admin_password\":\"mysecretpassword\"}").jsonString();
+            logger.info("Running with PostreSQL wallet enabled! Config = " + JsonPath.read(provisionConfig, "$.storage_config"));
         } else {
             logger.info("Running with builtin wallet.");
         }
 
-        // add webhook url to config
-        String optionalWebhook = "http://localhost:7209/notifications/faber";
-        if (isPortReachable(optionalWebhook)) {
-            provisionConfig.put("$", "webhook_url", optionalWebhook);
-            logger.info("Running with webhook notifications enabled! Webhook url = " + optionalWebhook);
-        } else {
-            logger.info("Webhook url will not be used");
-        }
+        logger.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig));
+        String vcxConfig = UtilsApi.vcxProvisionAgent(provisionConfig);
 
-        logger.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig.jsonString()));
-        DocumentContext vcxConfig = JsonPath.parse(UtilsApi.vcxProvisionAgent(provisionConfig.jsonString()));
-
-        vcxConfig.put("$", "institution_name", "faber")
+        vcxConfig = JsonPath.parse(vcxConfig).put("$", "institution_name", "faber")
                 .put("$", "institution_logo_url", "http://robohash.org/234")
                 .put("$", "protocol_version", "2")
-                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn"); // file configured for skt testnet
-                //.put("$", "genesis_path", "http://54.180.86.51/genesis"); // or url can be configured
-        logger.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig.jsonString()));
-        VcxApi.vcxInitWithConfig(vcxConfig.jsonString()).get();
-
-        // TODO: may vcxUpdateWebhookUrl is called during vcxInitWithConfig
-        if (isPortReachable(optionalWebhook))
-            VcxApi.vcxUpdateWebhookUrl(optionalWebhook).get();
+                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn").jsonString(); // file configured for skt testnet
+                //.put("$", "genesis_path", "http://54.180.86.51/genesis").jsonString(); // or url can be configured
+        logger.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig));
+        VcxApi.vcxInitWithConfig(vcxConfig).get();
 
         // define schema with actually needed
         String version = getRandomInt(1, 99) + "." + getRandomInt(1, 99) + "." + getRandomInt(1, 99);
-        DocumentContext schemaData = JsonPath.parse("{" +
+        String schemaData = JsonPath.parse("{" +
                 "  schema_name: 'degree_schema'," +
                 "  schema_version: '" + version + "'," +
                 "  attributes: ['name', 'last_name', 'date', 'degree', 'age']" +
-                "}");
-        logger.info("#3 Create a new schema on the ledger: \n" + prettyJson(schemaData.jsonString()));
+                "}").jsonString();
+        logger.info("#3 Create a new schema on the ledger: \n" + prettyJson(schemaData));
         int schemaHandle = SchemaApi.schemaCreate("schema_uuid",
-                schemaData.read("$.schema_name"),
-                schemaData.read("$.schema_version"),
-                JsonPath.parse((List)schemaData.read("$.attributes")).jsonString(),
+                JsonPath.read(schemaData, "$.schema_name"),
+                JsonPath.read(schemaData, "$.schema_version"),
+                JsonPath.parse((List)JsonPath.read(schemaData, "$.attributes")).jsonString(),
                 0).get();
         String schemaId = SchemaApi.schemaGetSchemaId(schemaHandle).get();
         logger.info("Created schema with id " + schemaId + " and handle " + schemaHandle);
 
         // define credential definition with actually needed
-        DocumentContext credDefData = JsonPath.parse("{" +
+        String credDefData = JsonPath.parse("{" +
                 "  schemaId: '" + schemaId + "'," +
                 "  tag: 'tag1'," +
                 "  config: {" +
@@ -113,14 +98,14 @@ public class Faber {
                 "    tails_file: '/tmp/tails'," +
                 "    max_creds: 5" +
                 "  }" +
-                "}");
-        logger.info("#4 Create a new credential definition on the ledger: \n" + prettyJson(credDefData.jsonString()));
+                "}").jsonString();
+        logger.info("#4 Create a new credential definition on the ledger: \n" + prettyJson(credDefData));
         int credDefHandle = CredentialDefApi.credentialDefCreate("'cred_def_uuid'",
                 "cred_def_name",
-                credDefData.read("$.schemaId"),
+                JsonPath.read(credDefData, "$.schemaId"),
                 null,
-                credDefData.read("$.tag"),
-                JsonPath.parse((LinkedHashMap)credDefData.read("$.config")).jsonString(),
+                JsonPath.read(credDefData, "$.tag"),
+                JsonPath.parse((LinkedHashMap)JsonPath.read(credDefData,"$.config")).jsonString(),
                 0).get();
         String credDefId = CredentialDefApi.credentialDefGetCredentialDefId(credDefHandle).get();
         logger.info("Created credential with id " + credDefId + " and handle " + credDefHandle);
@@ -128,40 +113,37 @@ public class Faber {
         logger.info("#5 Create a connection to alice and print out the invite details");
         int connectionHandle = ConnectionApi.vcxConnectionCreate("alice").get();
         ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
-        ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
-        DocumentContext details = JsonPath.parse(ConnectionApi.connectionInviteDetails(connectionHandle, 0).get());
+        String details = ConnectionApi.connectionInviteDetails(connectionHandle, 0).get();
         logger.info("\n**invite details**");
         logger.info("**You'll be queried to paste this data to alice side of the demo. This is invitation to connect.**");
         logger.info("**It's assumed this is obtained by Alice from Faber by some existing secure channel.**");
         logger.info("**Could be on website via HTTPS, QR code scanned at Faber institution, ...**");
         logger.info("\n******************\n");
-        logger.info(details.jsonString());
+        logger.info(details);
         logger.info("\n******************\n");
 
         logger.info("#6 Polling agency and waiting for alice to accept the invitation. (start alice now)");
-        ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
-        int connectionState = ConnectionApi.connectionGetState(connectionHandle).get();
+        int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         while (connectionState != StateType.Accepted) {
             Thread.sleep(2000);
-            ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
-            connectionState = ConnectionApi.connectionGetState(connectionHandle).get();
+            connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         }
         logger.info("Connection to alice was Accepted!");
 
-        DocumentContext schemaAttrs = JsonPath.parse("{" +
+        String schemaAttrs = JsonPath.parse("{" +
                 "  name: 'alice'," +
                 "  last_name: 'clark'," +
                 "  date: '05-2018'," +
                 "  degree: 'maths'," +
                 "  age: '25'" +
-                "}");
+                "}").jsonString();
 
         logger.info("#12 Create an IssuerCredential object using the schema and credential definition\n"
-                + prettyJson(schemaAttrs.jsonString()));
+                + prettyJson(schemaAttrs));
         int credentialHandle = IssuerApi.issuerCreateCredential("alice_degree",
                 credDefHandle,
                 null,
-                schemaAttrs.jsonString(),
+                schemaAttrs,
                 "cred",
                 0).get();
 
@@ -169,56 +151,52 @@ public class Faber {
         IssuerApi.issuerSendCredentialOffer(credentialHandle, connectionHandle).get();
 
         logger.info("#14 Poll agency and wait for alice to send a credential request");
-        IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
-        int credentialState = IssuerApi.issuerCredentialGetState(credentialHandle).get();
+        int credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
         while (credentialState != StateType.RequestReceived) {
             Thread.sleep(2000);
-            IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
-            credentialState = IssuerApi.issuerCredentialGetState(credentialHandle).get();
+            credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
         }
 
         logger.info("#17 Issue credential to alice");
         IssuerApi.issuerSendCredential(credentialHandle, connectionHandle).get();
 
         logger.info("#18 Wait for alice to accept credential");
-        IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
-        credentialState = IssuerApi.issuerCredentialGetState(credentialHandle).get();
+        credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
         while (credentialState != StateType.Accepted) {
             Thread.sleep(2000);
-            IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
-            credentialState = IssuerApi.issuerCredentialGetState(credentialHandle).get();
+            credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
         }
 
-        DocumentContext proofAttributes = JsonPath.parse("[" +
+        String proofAttributes = JsonPath.parse("[" +
                 "  {" +
                 "    names: ['name', 'last_name']," +
-                "    restrictions: [{ issuer_did: " + vcxConfig.read("$.institution_did") + " }]" +
+                "    restrictions: [{ issuer_did: " + JsonPath.read(vcxConfig, "$.institution_did") + " }]" +
                 "  }," +
                 "  {" +
                 "    name: 'date'," +
-                "    restrictions: { issuer_did: " + vcxConfig.read("$.institution_did") + " }" +
+                "    restrictions: { issuer_did: " + JsonPath.read(vcxConfig, "$.institution_did") + " }" +
                 "  }," +
                 "  {" +
                 "    name: 'degree'," +
                 "    restrictions: { 'attr::degree::value': 'maths' }" +
                 "  }" +
-                "]");
+                "]").jsonString();
 
-        DocumentContext proofPredicates = JsonPath.parse("[" +
+        String proofPredicates = JsonPath.parse("[" +
                 "  {" +
                 "    name: 'age'," +
                 "    p_type: '>='," +
                 "    p_value: 20," +
-                "    restrictions: [{ issuer_did: " + vcxConfig.read("$.institution_did") + " }]" +
+                "    restrictions: [{ issuer_did: " + JsonPath.read(vcxConfig, "$.institution_did") + " }]" +
                 "  }" +
-                "]");
+                "]").jsonString();
 
         logger.info("#19 Create a Proof object\n" +
-                "proofAttributes: " + prettyJson(proofAttributes.jsonString()) + "\n" +
-                "proofPredicates: " + prettyJson(proofPredicates.jsonString()));
+                "proofAttributes: " + prettyJson(proofAttributes) + "\n" +
+                "proofPredicates: " + prettyJson(proofPredicates));
         int proofHandle = ProofApi.proofCreate("proof_uuid",
-                proofAttributes.jsonString(),
-                proofPredicates.jsonString(),
+                proofAttributes,
+                proofPredicates,
                 "{}",
                 "proof_from_alice").get();
 
@@ -226,12 +204,10 @@ public class Faber {
         ProofApi.proofSendRequest(proofHandle, connectionHandle).get();
 
         logger.info("#21 Poll agency and wait for alice to provide proof");
-        ProofApi.proofUpdateState(proofHandle).get();
-        int proofState = ProofApi.proofGetState(proofHandle).get();
+        int proofState = ProofApi.proofUpdateState(proofHandle).get();
         while (proofState != StateType.Accepted) {
             Thread.sleep(2000);
-            ProofApi.proofUpdateState(proofHandle).get();
-            proofState = ProofApi.proofGetState(proofHandle).get();
+            proofState = ProofApi.proofUpdateState(proofHandle).get();
         }
 
         logger.info("#27 Process the proof provided by alice");
