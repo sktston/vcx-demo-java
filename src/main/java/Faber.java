@@ -92,7 +92,7 @@ public class Faber {
         // define credential definition with actually needed
         String credDefData = JsonPath.parse("{" +
                 "  schemaId: '" + schemaId + "'," +
-                "  tag: 'tag1'," +
+                "  tag: 'tag." + version + "'," +
                 "  config: {" +
                 "    support_revocation: true," +
                 "    tails_file: '/tmp/tails'," +
