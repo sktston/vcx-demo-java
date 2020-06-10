@@ -107,15 +107,4 @@ public class Common {
         }
         return null;
     }
-
-    public static boolean isPortReachable(String optionalWebhook) {
-        try {
-            URI uri = new URI(optionalWebhook);
-            Socket s = new Socket(uri.getHost(), uri.getPort());
-            return true;
-        } catch (Exception e) {
-            /* ignore */
-        }
-        return false;
-    }
 }

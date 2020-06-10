@@ -21,7 +21,7 @@ import static utils.Common.prettyJson;
 import static utils.State.StateType;
 
 @RestController
-public class NotificationController {
+public class GlobalController {
     // get logger for demo - INFO configured
     static final Logger logger = Common.getDemoLogger();
     static final Boolean AUTO_SEND_OFFER = true;
@@ -30,38 +30,33 @@ public class NotificationController {
 
     @PostMapping("/notifications")
     public ResponseEntity notificationsHandler(@RequestBody(required = false) NotificationRequestDto body) throws Exception {
-        logger.info("[" + java.time.LocalDateTime.now() + "] " + body.toString());
+        logger.info("notificationsHandler - body: " + body.toString());
 
+        // Get the message from mediator using notification information
         String messages = UtilsApi.vcxGetMessages(body.getMsgStatusCode(), body.getMsgUid(), body.getPwDid()).get();
         logger.info( "Messages: " +  prettyJson(messages));
+        String message = JsonPath.parse((LinkedHashMap)JsonPath.read(messages,"$.[0].msgs[0]")).jsonString();
+        String decryptedPayload = JsonPath.read(message, "$.decryptedPayload");
+        String payloadMessage = JsonPath.read(decryptedPayload,"$.@msg");
+        String type = JsonPath.read(decryptedPayload,"$.@type.name");
 
+        // pwDid is used as a connectionId
         String pwDid = JsonPath.read(messages,"$.[0].pairwiseDID");
         String connectionRecord = WalletApi.getRecordWallet("connection", pwDid, "").get();
         String connection = JsonPath.read(connectionRecord,"$.value");
         //logger.info("Get record - connection:\n" + prettyJson(connection));
-
-        LinkedHashMap<String, Object> message = JsonPath.read(messages,"$.[0].msgs[0]");
-
-        String decryptedPayload = (String)message.get("decryptedPayload");
-        String uid = (String)message.get("uid");
-        //logger.info( "Decrypted payload: " + decryptedPayload + ", UID: " + uid);
-
-        String payloadMessage = JsonPath.read(decryptedPayload,"$.@msg");
-        //logger.info( "Payload message: " + payloadMessage);
-
-        String type = JsonPath.read(decryptedPayload,"$.@type.name");
-        //logger.info( "Type: " + type);
 
         switch(type) {
             //connection response or ack of proof request
             case "aries":
                 String innerType = JsonPath.read(payloadMessage,"$.@type");
 
+                // STEP.4 - connection created
                 // connection response - At Invitee:
                 if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/response")){
                     logger.info("aries - connections/1.0/response");
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
-                    int connectionState = ConnectionApi.vcxConnectionUpdateStateWithMessage(connectionHandle, JsonPath.parse(message).jsonString()).get();
+                    int connectionState = ConnectionApi.vcxConnectionUpdateStateWithMessage(connectionHandle, message).get();
 
                     if (connectionState == StateType.Accepted) {
                         connection = ConnectionApi.connectionSerialize(connectionHandle).get();
@@ -74,6 +69,7 @@ public class NotificationController {
 
                     ConnectionApi.connectionRelease(connectionHandle);
                 }
+                // STEP.13 - receive proof ACK
                 //ack of proof request
                 else if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/present-proof/1.0/ack")){
                     logger.info("aries - present-proof/1.0/ack");
@@ -84,9 +80,9 @@ public class NotificationController {
                     String proof = JsonPath.read(proofRecord,"$.value");
 
                     // TODO: Must replace connection_handle in credential - Need to consider better way
-                    DocumentContext proofJson = JsonPath.parse(proof);
-                    proofJson.set("$.data.prover_sm.state.PresentationSent.connection_handle", Integer.toUnsignedLong(connectionHandle));
-                    proof = proofJson.jsonString();
+                    proof = JsonPath.parse(proof)
+                            .set("$.data.prover_sm.state.PresentationSent.connection_handle", Integer.toUnsignedLong(connectionHandle))
+                            .jsonString();
 
                     int proofHandle = DisclosedProofApi.proofDeserialize(proof).get();
                     int proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
@@ -105,16 +101,17 @@ public class NotificationController {
                     System.exit(0);
                 }
                 break;
+            // STEP.7 - accept credential offer & request credential
             case "credential-offer":
                 if (true) {
                     logger.info("credential-offer");
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
 
-                    //Create a credential object from the credential offer
-                    List<String> credentialOffer = JsonPath.read(payloadMessage, "$");
-                    String offer = JsonPath.parse(credentialOffer).jsonString();
-                    logger.info("credential offer:\n: " + prettyJson(offer));
-                    int credentialHandle = CredentialApi.credentialCreateWithOffer("credential", offer).get();
+                    String credentialOffer = JsonPath.parse((List)JsonPath.read(payloadMessage, "$")).jsonString();
+                    logger.info("credential offer:\n" + prettyJson(credentialOffer));
+
+                    // Create a credential object from the credential offer
+                    int credentialHandle = CredentialApi.credentialCreateWithOffer("credential", credentialOffer).get();
 
                     logger.info("#15 After receiving credential offer, send credential request");
                     CredentialApi.credentialSendRequest(credentialHandle, connectionHandle, 0).get();
@@ -129,6 +126,7 @@ public class NotificationController {
                     ConnectionApi.connectionRelease(connectionHandle);
                 }
                 break;
+            // STEP.9 - accept credential
             case "credential":
                 if (true) {
                     logger.info("credential");
@@ -139,9 +137,9 @@ public class NotificationController {
                     String credential = JsonPath.read(credentialRecord, "$.value");
 
                     // TODO: Must replace connection_handle in credential - Need to consider better way
-                    DocumentContext credentialJson = JsonPath.parse(credential);
-                    credentialJson.set("$.data.holder_sm.state.RequestSent.connection_handle", Integer.toUnsignedLong(connectionHandle));
-                    credential = credentialJson.jsonString();
+                    credential = JsonPath.parse(credential)
+                            .set("$.data.holder_sm.state.RequestSent.connection_handle", Integer.toUnsignedLong(connectionHandle))
+                            .jsonString();
 
                     int credentialHandle = CredentialApi.credentialDeserialize(credential).get();
 
@@ -163,28 +161,28 @@ public class NotificationController {
                     ConnectionApi.connectionRelease(connectionHandle);
                 }
                 break;
+            // STEP.11 - send proof
             case "presentation-request":
                 if (true) {
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
 
-                    //Create a Disclosed proof object from proof request
-                    LinkedHashMap<String, Object> request = JsonPath.read(payloadMessage,"$");
-                    logger.info("proof request:\n" + prettyJson(JsonPath.parse(request).jsonString()));
+                    String proofRequest = JsonPath.parse((LinkedHashMap)JsonPath.read(payloadMessage, "$")).jsonString();
+                    logger.info("proof request:\n" + prettyJson(proofRequest));
 
                     logger.info("#23 Create a Disclosed proof object from proof request");
-                    int proofHandle = DisclosedProofApi.proofCreateWithRequest("proof", JsonPath.parse(request).jsonString()).get();
+                    int proofHandle = DisclosedProofApi.proofCreateWithRequest("proof", proofRequest).get();
 
                     logger.info("#24 Query for credentials in the wallet that satisfy the proof request");
-                    DocumentContext credentials = JsonPath.parse(DisclosedProofApi.proofRetrieveCredentials(proofHandle).get());
+                    String credentials = DisclosedProofApi.proofRetrieveCredentials(proofHandle).get();
 
-                    LinkedHashMap<String, Object> attrs = credentials.read("$.attrs");
+                    LinkedHashMap<String, Object> attrs = JsonPath.read(credentials, "$.attrs");
                     for(String key : attrs.keySet()){
-                        DocumentContext attr = JsonPath.parse((LinkedHashMap)credentials.read("$.attrs." + key + ".[0]"));
-                        credentials.set("$.attrs." + key, JsonPath.parse("{\"credential\":"+ attr.jsonString() + "}").json());
+                        String attr = JsonPath.parse((LinkedHashMap)JsonPath.read(credentials, "$.attrs." + key + ".[0]")).jsonString();
+                        credentials = JsonPath.parse(credentials).set("$.attrs." + key, JsonPath.parse("{\"credential\":"+ attr + "}").json()).jsonString();
                     }
 
                     logger.info("#25 Generate the proof");
-                    DisclosedProofApi.proofGenerate(proofHandle, credentials.jsonString(), "{}").get();
+                    DisclosedProofApi.proofGenerate(proofHandle, credentials, "{}").get();
 
                     logger.info("#26 Send the proof to faber");
                     DisclosedProofApi.proofSend(proofHandle, connectionHandle).get();

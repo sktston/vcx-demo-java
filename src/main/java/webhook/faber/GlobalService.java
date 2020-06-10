@@ -1,5 +1,6 @@
 package webhook.faber;
 
+import com.evernym.sdk.vcx.connection.ConnectionApi;
 import com.evernym.sdk.vcx.credentialDef.CredentialDefApi;
 import com.evernym.sdk.vcx.schema.SchemaApi;
 import com.evernym.sdk.vcx.utils.UtilsApi;
@@ -9,6 +10,7 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import org.springframework.stereotype.Service;
 import utils.Common;
+import utils.State;
 
 import javax.annotation.PostConstruct;
 import java.util.LinkedHashMap;
@@ -19,7 +21,7 @@ import static utils.Common.getRandomInt;
 import static utils.Common.prettyJson;
 
 @Service
-public class InitService {
+public class GlobalService {
     // get logger for demo - INFO configured
     static final Logger logger = Common.getDemoLogger();
 
@@ -31,7 +33,7 @@ public class InitService {
         Common.loadNullPayPlugin();
 
         long utime = System.currentTimeMillis() / 1000;
-        DocumentContext provisionConfig = JsonPath.parse("{" +
+        String provisionConfig  = JsonPath.parse("{" +
                 //"  agency_url: 'http://15.165.161.165:8080'," + // skt test dummy cloud agent
                 "  agency_url: 'http://localhost:8080'," + // use local
                 "  agency_did: 'VsKV7grR1BUE29mG2Fm2kX'," +
@@ -40,28 +42,28 @@ public class InitService {
                 "  wallet_key: '123'," +
                 "  payment_method: 'null'," +
                 "  enterprise_seed: '000000000000000000000000Steward1'" + // SEED of faber's DID already registered in the ledger
-                "}");
+                "}").jsonString();
 
         // Communication method. aries.
-        provisionConfig.put("$", "protocol_type", "3.0");
+        provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "3.0").jsonString();
         logger.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 3.0");
 
         // add webhook url to config
-        provisionConfig.put("$", "webhook_url", webhookUrl);
+        provisionConfig = JsonPath.parse(provisionConfig).put("$", "webhook_url", webhookUrl).jsonString();
         logger.info("Running with webhook notifications enabled! Webhook url = " + webhookUrl);
 
-        logger.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig.jsonString()));
-        DocumentContext vcxConfig = JsonPath.parse(UtilsApi.vcxProvisionAgent(provisionConfig.jsonString()));
+        logger.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig));
+        String vcxConfig = UtilsApi.vcxProvisionAgent(provisionConfig);
 
-        vcxConfig.put("$", "institution_name", "faber")
+        vcxConfig = JsonPath.parse(vcxConfig).put("$", "institution_name", "faber")
                 .put("$", "institution_logo_url", "http://robohash.org/234")
                 .put("$", "protocol_version", "2")
-                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn"); // file configured for skt testnet
-        //.put("$", "genesis_path", "http://54.180.86.51/genesis"); // or url can be configured
-        logger.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig.jsonString()));
-        VcxApi.vcxInitWithConfig(vcxConfig.jsonString()).get();
+                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn").jsonString(); // file configured for skt testnet
+        //.put("$", "genesis_path", "http://54.180.86.51/genesis").jsonString(); // or url can be configured
+        logger.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig));
+        VcxApi.vcxInitWithConfig(vcxConfig).get();
 
-        WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig.jsonString()).get();
+        WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig).get();
 
         // TODO: may vcxUpdateWebhookUrl is called during vcxInitWithConfig
         VcxApi.vcxUpdateWebhookUrl(webhookUrl).get();
@@ -73,16 +75,16 @@ public class InitService {
     public void createSchema() throws Exception {
         // define schema with actually needed
         String version = getRandomInt(1, 99) + "." + getRandomInt(1, 99) + "." + getRandomInt(1, 99);
-        DocumentContext schemaData = JsonPath.parse("{" +
+        String schemaData = JsonPath.parse("{" +
                 "  schema_name: 'degree_schema'," +
                 "  schema_version: '" + version + "'," +
                 "  attributes: ['name', 'last_name', 'date', 'degree', 'age']" +
-                "}");
-        logger.info("#3 Create a new schema on the ledger: \n" + prettyJson(schemaData.jsonString()));
+                "}").jsonString();
+        logger.info("#3 Create a new schema on the ledger: \n" + prettyJson(schemaData));
         int schemaHandle = SchemaApi.schemaCreate("schema_uuid",
-                schemaData.read("$.schema_name"),
-                schemaData.read("$.schema_version"),
-                JsonPath.parse((List)schemaData.read("$.attributes")).jsonString(),
+                JsonPath.read(schemaData, "$.schema_name"),
+                JsonPath.read(schemaData, "$.schema_version"),
+                JsonPath.parse((List)JsonPath.read(schemaData, "$.attributes")).jsonString(),
                 0).get();
         String schemaId = SchemaApi.schemaGetSchemaId(schemaHandle).get();
         logger.info("Created schema with id " + schemaId + " and handle " + schemaHandle);
@@ -102,22 +104,23 @@ public class InitService {
         SchemaApi.schemaRelease(schemaHandle);
 
         // define credential definition with actually needed
-        DocumentContext credDefData = JsonPath.parse("{" +
+        String version = getRandomInt(1, 99) + "." + getRandomInt(1, 99) + "." + getRandomInt(1, 99);
+        String credDefData = JsonPath.parse("{" +
                 "  schemaId: '" + schemaId + "'," +
-                "  tag: 'tag1'," +
+                "  tag: 'tag." + version + "'," +
                 "  config: {" +
-                "    support_revocation: false," +
+                "    support_revocation: true," +
                 "    tails_file: '/tmp/tails'," +
                 "    max_creds: 5" +
                 "  }" +
-                "}");
-        logger.info("#4 Create a new credential definition on the ledger: \n" + prettyJson(credDefData.jsonString()));
+                "}").jsonString();
+        logger.info("#4 Create a new credential definition on the ledger: \n" + prettyJson(credDefData));
         int credDefHandle = CredentialDefApi.credentialDefCreate("'cred_def_uuid'",
                 "cred_def_name",
-                credDefData.read("$.schemaId"),
+                JsonPath.read(credDefData, "$.schemaId"),
                 null,
-                credDefData.read("$.tag"),
-                JsonPath.parse((LinkedHashMap)credDefData.read("$.config")).jsonString(),
+                JsonPath.read(credDefData, "$.tag"),
+                JsonPath.parse((LinkedHashMap)JsonPath.read(credDefData,"$.config")).jsonString(),
                 0).get();
         String credDefId = CredentialDefApi.credentialDefGetCredentialDefId(credDefHandle).get();
         logger.info("Created credential with id " + credDefId + " and handle " + credDefHandle);

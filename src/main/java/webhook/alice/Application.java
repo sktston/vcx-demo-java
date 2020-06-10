@@ -20,7 +20,7 @@ import static utils.Common.prettyJson;
 public class Application {
     // get logger for demo - INFO configured
     static final Logger logger = Common.getDemoLogger();
-    static final String createInvitationUrl = "http://localhost:7201/create-invitation";
+    static final String createInvitationUrl = "http://localhost:7201/connections/invitation";
 
     public static void main(String[] args) {
         // InitService.initialize () is automatically called when this application starts.
@@ -49,6 +49,7 @@ public class Application {
                 logger.info(con.getResponseMessage());
             }
 
+            // STEP.2 - receive invitation & create connection A2F
             // accept invitation
             DocumentContext details = JsonPath.parse(sb.toString());
             logger.info("#10 Convert to valid json and string and create a connection to faber");
