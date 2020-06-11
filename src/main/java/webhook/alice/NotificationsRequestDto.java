@@ -1,6 +1,6 @@
-package webhook.faber;
+package webhook.alice;
 
-public class NotificationRequestDto {
+public class NotificationsRequestDto {
     private String msgUid;
     private String msgType;
     private String theirPwDid;
@@ -8,10 +8,10 @@ public class NotificationRequestDto {
     private String notificationId;
     private String pwDid;
 
-    public NotificationRequestDto() {
+    public NotificationsRequestDto() {
     }
 
-    public NotificationRequestDto(String msgUid, String msgType, String theirPwDid, String msgStatusCode, String notificationId, String pwDid) {
+    public NotificationsRequestDto(String msgUid, String msgType, String theirPwDid, String msgStatusCode, String notificationId, String pwDid) {
         this.msgUid = msgUid;
         this.msgType = msgType;
         this.theirPwDid = theirPwDid;

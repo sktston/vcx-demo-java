@@ -1,16 +1,13 @@
 package webhook.faber;
 
-import com.evernym.sdk.vcx.connection.ConnectionApi;
 import com.evernym.sdk.vcx.credentialDef.CredentialDefApi;
 import com.evernym.sdk.vcx.schema.SchemaApi;
 import com.evernym.sdk.vcx.utils.UtilsApi;
 import com.evernym.sdk.vcx.vcx.VcxApi;
 import com.evernym.sdk.vcx.wallet.WalletApi;
-import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import org.springframework.stereotype.Service;
 import utils.Common;
-import utils.State;
 
 import javax.annotation.PostConstruct;
 import java.util.LinkedHashMap;

@@ -31,9 +31,8 @@ public class GlobalController {
     @Autowired
     GlobalService globalService;
 
-
     @PostMapping("/notifications")
-    public ResponseEntity notificationsHandler(@RequestBody(required = false) NotificationRequestDto body) throws Exception {
+    public ResponseEntity notificationsHandler(@RequestBody(required = false) NotificationsRequestDto body) throws Exception {
         logger.info("notificationsHandler - body: " + body.toString());
 
         // Get the message from mediator using notification information
@@ -269,7 +268,7 @@ public class GlobalController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("connections/invitation")
+    @GetMapping("/invitations")
     public String createInvitationHandler() throws Exception{
         // STEP.1 - create connection F & send invitation
         logger.info("createInvitationHandler called");

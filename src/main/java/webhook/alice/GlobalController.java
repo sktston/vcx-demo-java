@@ -5,7 +5,6 @@ import com.evernym.sdk.vcx.credential.CredentialApi;
 import com.evernym.sdk.vcx.proof.DisclosedProofApi;
 import com.evernym.sdk.vcx.utils.UtilsApi;
 import com.evernym.sdk.vcx.wallet.WalletApi;
-import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,7 +28,7 @@ public class GlobalController {
     static final Boolean AUTO_SEND_PROOF_REQUEST = true;
 
     @PostMapping("/notifications")
-    public ResponseEntity notificationsHandler(@RequestBody(required = false) NotificationRequestDto body) throws Exception {
+    public ResponseEntity notificationsHandler(@RequestBody(required = false) NotificationsRequestDto body) throws Exception {
         logger.info("notificationsHandler - body: " + body.toString());
 
         // Get the message from mediator using notification information

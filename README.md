@@ -63,18 +63,31 @@ Once you have that ready, use these commands to start demo in postgres mode.
 ```
 
 ### Demo with webhook notifications
-Another feature are webhook notifications. If you run sample webhook notification server by running:
+Another feature are webhook notifications. The above demo works based on polling, but when using webhook feature, 
+it works based on notification.
 ```
-./gradlew notifyserver
+./gradlew webhook_faber
+```
+```
+./gradlew webhook_alice
 ```
 
-This will start new http server on `localhost:7209`.
+Faber receives messages of dummy cloud agent at `localhost:7201/notifications`. Similarly, Alice receives 
+at `localhost:7202/notifications`. The action is performed based on the message received, which is briefly 
+described below.
 
-Opened port on `localhost:7209` will modify `Faber` and `Alice` in the demo in following way: 
-They will register their notification webhook in cloud agency. Everytime cloud agent will receive
-a message on behalf of the owner, it will send notification to webhook url specified in agent configuration.
-In the case of this demo, it's by default `localhost:7209/notifications/faber` and 
-`localhost:7209/notifications/alice`. 
+| Phase | Faber | Alice |
+|---|---|---|
+| connection | STEP.1 - create connection F & send invitation | STEP.2 - receive invitation & create connection A2F |
+|  | STEP.3 - update connection from F to F2A | STEP.4 - connection created |
+|  | STEP.5 - receive connection created ACK |  |
+| credential | STEP.6 - send credential offer | STEP.7 - accept credential offer & request credential |
+|  | STEP.8 - send credential | STEP.9 - accept credential |
+| proof | STEP.10 - request proof | STEP.11 - send proof |
+|  | STEP.12 - receive & verify proof | STEP.13 - receive proof ACK |
+
+When Alice starts, it automatically gets an invitation from Faber's `localhost:7201/invitations`. So, in a situation 
+where Faber is running normally, run Alice.
 
 ### (Temporal) New DID registration demo
 Since LibVCX does not provide APIs to register a new DID, this code was written using LibIndy.
