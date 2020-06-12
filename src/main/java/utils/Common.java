@@ -3,14 +3,19 @@ package utils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
+import com.jayway.jsonpath.JsonPath;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import org.apache.commons.cli.*;
+import org.springframework.http.MediaType;
+import org.springframework.web.reactive.function.client.WebClient;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.net.Socket;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.*;
+import java.time.Duration;
 import java.util.Random;
 import java.util.logging.*;
 
@@ -106,5 +111,72 @@ public class Common {
             System.err.println("Parsing failed. Reason: " + exp.getMessage());
         }
         return null;
+    }
+
+    public static String requestGet(String requestUrl, String body) throws Exception {
+        URL url = new URL(requestUrl);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("Accept-Charset", "UTF-8");
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+
+        StringBuilder sb = new StringBuilder();
+        if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+            br.close();
+        } else {
+            throw new IOException("ResponseCode is not HTTP_OK" + conn.getResponseCode());
+        }
+        return sb.toString();
+    }
+
+    public static String requestPost(String requestUrl, String body) throws Exception {
+        URL url = new URL(requestUrl);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setDoOutput(true);
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("Accept-Charset", "UTF-8");
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+
+        OutputStream os = conn.getOutputStream();
+        os.write(body.getBytes("UTF-8"));
+        os.flush();
+
+        StringBuilder sb = new StringBuilder();
+        if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+            br.close();
+        } else {
+            throw new IOException("ResponseCode is not HTTP_OK" + conn.getResponseCode());
+        }
+        return sb.toString();
+    }
+
+    public static String agencyUpdateWebhookUrl(String provisionConfig, String vcxConfig, String webhookUrl) throws Exception {
+        String body = JsonPath.parse("{ webhookUrl : '" + webhookUrl + "' }").jsonString();
+
+        WebClient webClient = WebClient.create(JsonPath.read(provisionConfig, "$.agency_url"));
+        String response =  webClient.post()
+                .uri("/agent/" + JsonPath.read(vcxConfig, "$.remote_to_sdk_did"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .syncBody(body)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block(Duration.ofSeconds(3));
+
+        return response;
     }
 }

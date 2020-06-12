@@ -19,6 +19,11 @@ public class GlobalService {
 
     static final String webhookUrl = "http://localhost:7202/notifications";
 
+    // node agency is not support vcxUpdateWebhookUrl currently
+    // therefore we directly communicate with agency for now
+    // dummy cloud agent -> true, node agency -> false
+    static final boolean supportVcxUpdateWebhookUrl = false;
+
     @PostConstruct
     public void initialize() throws Exception {
         logger.info("#0 Initialize");
@@ -58,7 +63,11 @@ public class GlobalService {
 
         WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig).get();
 
-        // TODO: may vcxUpdateWebhookUrl is called during vcxInitWithConfig
-        VcxApi.vcxUpdateWebhookUrl(webhookUrl).get();
+        if (supportVcxUpdateWebhookUrl) {
+            // TODO: may vcxUpdateWebhookUrl is called during vcxInitWithConfig
+            VcxApi.vcxUpdateWebhookUrl(webhookUrl).get();
+        } else {
+            Common.agencyUpdateWebhookUrl(provisionConfig, vcxConfig, webhookUrl);
+        }
     }
 }

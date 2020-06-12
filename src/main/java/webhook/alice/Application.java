@@ -4,12 +4,11 @@ import com.evernym.sdk.vcx.connection.ConnectionApi;
 import com.evernym.sdk.vcx.wallet.WalletApi;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.reactive.function.client.WebClient;
 import utils.Common;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.Duration;
 import java.util.logging.Logger;
 
 import static utils.Common.prettyJson;
@@ -25,31 +24,17 @@ public class Application {
         SpringApplication.run(Application.class, args);
 
         try {
-            URL url = new URL(invitationUrl);
-            HttpURLConnection con = (HttpURLConnection) url.openConnection();
-            con.setConnectTimeout(5000);
-            con.setReadTimeout(5000);
-
-            con.setRequestMethod("GET");
-
-            StringBuilder sb = new StringBuilder();
-            if (con.getResponseCode() == HttpURLConnection.HTTP_OK) {
-                BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream(), "utf-8"));
-                String line;
-                while ((line = br.readLine()) != null) {
-                    sb.append(line).append("\n");
-                }
-                br.close();
-                logger.info("Alice get invitation from " + invitationUrl);
-                logger.info(sb.toString());
-            } else {
-                logger.info("Alice could not get invitation from " + invitationUrl);
-                logger.info(con.getResponseMessage());
-            }
-
             // STEP.2 - receive invitation & create connection A2F
             // accept invitation
-            String details = sb.toString();
+            URL url = new URL(invitationUrl);
+            WebClient webClient = WebClient.create(url.getProtocol() + "://" + url.getAuthority());
+            String details = webClient.get()
+                    .uri(url.getPath())
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block(Duration.ofSeconds(3));
+            logger.info("details" + details);
+
             logger.info("#10 Convert to valid json and string and create a connection to faber");
             int connectionHandle = ConnectionApi.vcxCreateConnectionWithInvite("faber", details).get();
             ConnectionApi.vcxConnectionConnect(connectionHandle, "{\"use_public_did\": true}").get();

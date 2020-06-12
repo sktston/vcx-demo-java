@@ -96,8 +96,8 @@ public class GlobalController {
                     ConnectionApi.connectionRelease(connectionHandle);
                     DisclosedProofApi.proofRelease(proofHandle);
 
-                    // Supposed here is exit
-                    System.exit(0);
+                    // Supposed here is the end
+                    logger.info("Faber demo is completed (Exit manually)");
                 }
                 break;
             // STEP.7 - accept credential offer & request credential
