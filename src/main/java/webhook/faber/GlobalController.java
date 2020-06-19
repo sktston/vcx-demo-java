@@ -15,6 +15,7 @@ import utils.Common;
 import utils.State;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.logging.Logger;
 
 import static utils.Common.prettyJson;
@@ -272,19 +273,9 @@ public class GlobalController {
     public String createInvitationHandler() throws Exception{
         // STEP.1 - create connection F & send invitation
         logger.info("createInvitationHandler called");
-        logger.info("#5 Create a connection to alice and return the invite details");
-        int connectionHandle = ConnectionApi.vcxConnectionCreate("alice").get();
-        ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
-        String details = ConnectionApi.connectionInviteDetails(connectionHandle, 0).get();
-        logger.info("**invite details**");
-        logger.info(details);
+        String invitationRecord = WalletApi.getRecordWallet("invitation", "defaultInvitation", "").get();
+        String invitation = JsonPath.read(invitationRecord,"$.value");
 
-        String connection = ConnectionApi.connectionSerialize(connectionHandle).get();
-        String pwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
-        logger.info("Add record - connection: \n" + prettyJson(connection));
-        WalletApi.addRecordWallet("connection", pwDid, connection).get();
-        ConnectionApi.connectionRelease(connectionHandle);
-
-        return details;
+        return invitation;
     }
 }

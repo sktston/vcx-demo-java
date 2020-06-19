@@ -1,5 +1,6 @@
 package webhook.faber;
 
+import com.evernym.sdk.vcx.connection.ConnectionApi;
 import com.evernym.sdk.vcx.credentialDef.CredentialDefApi;
 import com.evernym.sdk.vcx.schema.SchemaApi;
 import com.evernym.sdk.vcx.utils.UtilsApi;
@@ -76,6 +77,7 @@ public class GlobalService {
 
         createSchema();
         createCredentialDefinition();
+        createInviation();
     }
 
     public void createSchema() throws Exception {
@@ -96,8 +98,8 @@ public class GlobalService {
         logger.info("Created schema with id " + schemaId + " and handle " + schemaHandle);
 
         String schema = SchemaApi.schemaSerialize(schemaHandle).get();
-        logger.info("Serialized schema: \n" + prettyJson(schema));
 
+        logger.info("addRecordWallet - (schema, defaultSchema, " + prettyJson(schema) + ")");
         WalletApi.addRecordWallet("schema", "defaultSchema", schema).get();
         SchemaApi.schemaRelease(schemaHandle);
     }
@@ -132,9 +134,28 @@ public class GlobalService {
         logger.info("Created credential with id " + credDefId + " and handle " + credDefHandle);
 
         String credDef = CredentialDefApi.credentialDefSerialize(credDefHandle).get();
-        logger.info("Serialized credential definition: \n" + prettyJson(credDef));
 
+        logger.info("addRecordWallet - (credentialDef, defaultCredentialDef, " + prettyJson(credDef) + ")");
         WalletApi.addRecordWallet("credentialDef", "defaultCredentialDef", credDef).get();
         CredentialDefApi.credentialDefRelease(credDefHandle);
+    }
+
+    public void createInviation() throws Exception {
+        //STEP.1 - create connection F & send invitation
+        logger.info("#5 Create a connection to alice and return the invite details");
+        int connectionHandle = ConnectionApi.vcxConnectionCreate("alice").get();
+        ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
+        String details = ConnectionApi.connectionInviteDetails(connectionHandle, 0).get();
+        logger.info("**invite details**");
+        logger.info(details);
+
+        logger.info("addRecordWallet - (invitation, defaultInvitation, " + prettyJson(details) + ")");
+        WalletApi.addRecordWallet("invitation", "defaultInvitation", details).get();
+
+        String connection = ConnectionApi.connectionSerialize(connectionHandle).get();
+        String pwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
+        logger.info("addRecordWallet - (connection, " + pwDid + ", " + prettyJson(connection) + ")");
+        WalletApi.addRecordWallet("connection", pwDid, connection).get();
+        ConnectionApi.connectionRelease(connectionHandle);
     }
 }
