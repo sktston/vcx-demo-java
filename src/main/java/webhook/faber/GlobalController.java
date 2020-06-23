@@ -125,10 +125,6 @@ public class GlobalController {
                         logger.info("Add record - credential:\n" + prettyJson(credential));
                         WalletApi.addRecordWallet("credential", threadId, credential).get();
 
-                        connection = ConnectionApi.connectionSerialize(connectionHandle).get();
-                        logger.info("Update record - connection:\n" + prettyJson(connection));
-                        WalletApi.updateRecordWallet("connection", pwDid, connection).get();
-
                         IssuerApi.issuerCredentialRelease(credentialHandle);
                         CredentialDefApi.credentialDefRelease(credDefHandle);
                     }
