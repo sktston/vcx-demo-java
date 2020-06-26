@@ -11,13 +11,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import utils.Common;
+import utils.VcxState;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.logging.Logger;
 
 import static utils.Common.prettyJson;
-import static utils.State.StateType;
 
 @RestController
 public class GlobalController {
@@ -57,7 +57,7 @@ public class GlobalController {
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
                     int connectionState = ConnectionApi.vcxConnectionUpdateStateWithMessage(connectionHandle, message).get();
 
-                    if (connectionState == StateType.Accepted) {
+                    if (connectionState == VcxState.Accepted.getValue()) {
                         connection = ConnectionApi.connectionSerialize(connectionHandle).get();
                         logger.info("Update record - connection:\n" + prettyJson(connection));
                         WalletApi.updateRecordWallet("connection", pwDid, connection).get();
@@ -86,7 +86,7 @@ public class GlobalController {
                     int proofHandle = DisclosedProofApi.proofDeserialize(proof).get();
                     int proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
 
-                    if (proofState == StateType.Accepted) {
+                    if (proofState == VcxState.Accepted.getValue()) {
                         logger.info("Faber received the proof");
                     }
                     else {
@@ -143,7 +143,7 @@ public class GlobalController {
                     int credentialHandle = CredentialApi.credentialDeserialize(credential).get();
 
                     int credentialState = CredentialApi.credentialUpdateState(credentialHandle).get();
-                    if (credentialState == StateType.Accepted) {
+                    if (credentialState == VcxState.Accepted.getValue()) {
                         logger.info("#16 Accepted credential from faber");
                     }
                     else {

@@ -16,10 +16,11 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import utils.Common;
+import utils.ProofState;
+import utils.VcxState;
+
 import static utils.Common.prettyJson;
 import static utils.Common.getRandomInt;
-import static utils.State.StateType;
-import static utils.State.ProofState;
 
 public class Faber {
     // get logger for demo - INFO configured
@@ -124,7 +125,7 @@ public class Faber {
 
         logger.info("#6 Polling agency and waiting for alice to accept the invitation. (start alice now)");
         int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
-        while (connectionState != StateType.Accepted) {
+        while (connectionState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         }
@@ -152,7 +153,7 @@ public class Faber {
 
         logger.info("#14 Poll agency and wait for alice to send a credential request");
         int credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
-        while (credentialState != StateType.RequestReceived) {
+        while (credentialState != VcxState.RequestReceived.getValue()) {
             Thread.sleep(2000);
             credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
         }
@@ -162,7 +163,7 @@ public class Faber {
 
         logger.info("#18 Wait for alice to accept credential");
         credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
-        while (credentialState != StateType.Accepted) {
+        while (credentialState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
         }
@@ -205,7 +206,7 @@ public class Faber {
 
         logger.info("#21 Poll agency and wait for alice to provide proof");
         int proofState = ProofApi.proofUpdateState(proofHandle).get();
-        while (proofState != StateType.Accepted) {
+        while (proofState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             proofState = ProofApi.proofUpdateState(proofHandle).get();
         }
@@ -214,7 +215,7 @@ public class Faber {
         GetProofResult proofResult = ProofApi.getProof(proofHandle, connectionHandle).get();
 
         logger.info("#28 Check if proof is valid");
-        if (proofResult.getProof_state() == ProofState.Verified) {
+        if (proofResult.getProof_state() == ProofState.Validated.getValue()) {
             logger.info("Proof is verified");
         }
         else {

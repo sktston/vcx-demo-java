@@ -12,15 +12,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import utils.Common;
-import utils.State;
+import utils.ProofState;
+import utils.VcxState;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.logging.Logger;
 
 import static utils.Common.prettyJson;
-import static utils.State.StateType;
-import static utils.State.ProofState;
 
 @RestController
 public class GlobalController {
@@ -62,7 +60,7 @@ public class GlobalController {
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
                     int connectionState = ConnectionApi.vcxConnectionUpdateStateWithMessage(connectionHandle, JsonPath.parse(message).jsonString()).get();
 
-                    if (connectionState == State.StateType.RequestReceived) {
+                    if (connectionState == VcxState.RequestReceived.getValue()) {
                         // new relationship
                         String newPwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
 
@@ -83,7 +81,7 @@ public class GlobalController {
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
                     int connectionState = ConnectionApi.vcxConnectionUpdateStateWithMessage(connectionHandle, message).get();
 
-                    if (connectionState == StateType.Accepted) {
+                    if (connectionState == VcxState.Accepted.getValue()) {
                         connection = ConnectionApi.connectionSerialize(connectionHandle).get();
                         logger.info("Update record - connection:\n" + prettyJson(connection));
                         WalletApi.updateRecordWallet("connection", pwDid, connection).get();
@@ -150,7 +148,7 @@ public class GlobalController {
                     int credentialHandle = IssuerApi.issuerCredentialDeserialize(credential).get();
                     int credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
 
-                    if (credentialState == StateType.RequestReceived) {
+                    if (credentialState == VcxState.RequestReceived.getValue()) {
                         logger.info("#17 Issue credential to alice");
                         IssuerApi.issuerSendCredential(credentialHandle, connectionHandle).get();
 
@@ -238,12 +236,12 @@ public class GlobalController {
                     int proofHandle = ProofApi.proofDeserialize(proof).get();
                     int proofState = ProofApi.proofUpdateState(proofHandle).get();
 
-                    if (proofState == StateType.Accepted) {
+                    if (proofState == VcxState.Accepted.getValue()) {
                         logger.info("#27 Process the proof provided by alice");
                         GetProofResult proofResult = ProofApi.getProof(proofHandle, connectionHandle).get();
 
                         logger.info("#28 Check if proof is valid");
-                        if (proofResult.getProof_state() == ProofState.Verified) {
+                        if (proofResult.getProof_state() == ProofState.Validated.getValue()) {
                             logger.info("Proof is verified");
                         }
                         else {

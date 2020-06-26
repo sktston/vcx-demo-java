@@ -14,9 +14,9 @@ import java.util.Scanner;
 import java.util.logging.Logger;
 
 import utils.Common;
+import utils.VcxState;
 
 import static utils.Common.prettyJson;
-import static utils.State.StateType;
 
 public class Alice {
     // get logger for demo - INFO configured
@@ -79,7 +79,7 @@ public class Alice {
         int connectionHandle = ConnectionApi.vcxCreateConnectionWithInvite("faber", details).get();
         ConnectionApi.vcxConnectionConnect(connectionHandle, "{\"use_public_did\": true}").get();
         int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
-        while (connectionState != StateType.Accepted) {
+        while (connectionState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         }
@@ -99,7 +99,7 @@ public class Alice {
 
         logger.info("#16 Poll agency and accept credential from faber");
         int credentialState = CredentialApi.credentialUpdateState(credentialHandle).get();
-        while (credentialState != StateType.Accepted) {
+        while (credentialState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             credentialState = CredentialApi.credentialUpdateState(credentialHandle).get();
         }
@@ -134,7 +134,7 @@ public class Alice {
 
         logger.info("#27 Wait for Faber to receive the proof");
         int proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
-        while (proofState != StateType.Accepted) {
+        while (proofState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
         }
