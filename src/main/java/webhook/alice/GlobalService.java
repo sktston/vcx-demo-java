@@ -1,13 +1,18 @@
 package webhook.alice;
 
+import com.evernym.sdk.vcx.connection.ConnectionApi;
 import com.evernym.sdk.vcx.utils.UtilsApi;
 import com.evernym.sdk.vcx.vcx.VcxApi;
 import com.evernym.sdk.vcx.wallet.WalletApi;
 import com.jayway.jsonpath.JsonPath;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 import utils.Common;
 
 import javax.annotation.PostConstruct;
+import java.time.Duration;
 import java.util.logging.Logger;
 
 import static utils.Common.prettyJson;
@@ -17,7 +22,8 @@ public class GlobalService {
     // get logger for demo - INFO configured
     static final Logger logger = Common.getDemoLogger();
 
-    static final String webhookUrl = "http://localhost:7202/notifications";
+    static final String webhookUrl = "http://localhost:7202/notifications"; // alice (me)
+    static final String invitationUrl = "http://localhost:7201/invitations"; // faber
 
     // node agency is not support vcxUpdateWebhookUrl currently
     // therefore we directly communicate with agency for now
@@ -61,6 +67,7 @@ public class GlobalService {
         logger.info("#9 Initialize libvcx with new configuration\n" + prettyJson(vcxConfig));
         VcxApi.vcxInitWithConfig(vcxConfig).get();
 
+        logger.info("addRecordWallet (vcxConfig, defaultVcxConfig, " + prettyJson(vcxConfig) + ")");
         WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig).get();
 
         if (supportVcxUpdateWebhookUrl) {
@@ -69,5 +76,30 @@ public class GlobalService {
         } else {
             Common.agencyUpdateWebhookUrl(provisionConfig, vcxConfig, webhookUrl);
         }
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void receiveInvitation() throws Exception {
+
+        // STEP.2 - receive invitation & create connection A2F
+        // accept invitation
+        WebClient webClient = WebClient.create();
+        String details = WebClient.create().get()
+                .uri(invitationUrl)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block(Duration.ofSeconds(3));
+        logger.info("details" + details);
+
+        logger.info("#10 Convert to valid json and string and create a connection to faber");
+        int connectionHandle = ConnectionApi.vcxCreateConnectionWithInvite("faber", details).get();
+        ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
+        ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
+
+        String connection = ConnectionApi.connectionSerialize(connectionHandle).get();
+        String pwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
+        logger.info("addRecordWallet (connection, " + pwDid + ", " + prettyJson(connection) + ")");
+        WalletApi.addRecordWallet("connection", pwDid, connection).get();
+        ConnectionApi.connectionRelease(connectionHandle);
     }
 }

@@ -66,6 +66,7 @@ public class GlobalService {
         logger.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig));
         VcxApi.vcxInitWithConfig(vcxConfig).get();
 
+        logger.info("addRecordWallet (vcxConfig, defaultVcxConfig, " + prettyJson(vcxConfig) + ")");
         WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig).get();
 
         if (supportVcxUpdateWebhookUrl) {
@@ -152,10 +153,10 @@ public class GlobalService {
         logger.info("addRecordWallet - (invitation, defaultInvitation, " + prettyJson(details) + ")");
         WalletApi.addRecordWallet("invitation", "defaultInvitation", details).get();
 
-        String connection = ConnectionApi.connectionSerialize(connectionHandle).get();
+        String serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
         String pwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
-        logger.info("addRecordWallet - (connection, " + pwDid + ", " + prettyJson(connection) + ")");
-        WalletApi.addRecordWallet("connection", pwDid, connection).get();
+        logger.info("addRecordWallet - (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
+        WalletApi.addRecordWallet("connection", pwDid, serializedConnection).get();
         ConnectionApi.connectionRelease(connectionHandle);
     }
 }

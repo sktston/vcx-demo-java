@@ -77,7 +77,7 @@ public class Alice {
 
         logger.info("#10 Convert to valid json and string and create a connection to faber");
         int connectionHandle = ConnectionApi.vcxCreateConnectionWithInvite("faber", details).get();
-        ConnectionApi.vcxConnectionConnect(connectionHandle, "{\"use_public_did\": true}").get();
+        ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
         int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         while (connectionState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);

@@ -45,8 +45,8 @@ public class GlobalController {
         // pwDid is used as a connectionId
         String pwDid = JsonPath.read(messages,"$.[0].pairwiseDID");
         String connectionRecord = WalletApi.getRecordWallet("connection", pwDid, "").get();
-        String connection = JsonPath.read(connectionRecord,"$.value");
-        //logger.info("Get record - connection:\n" + prettyJson(connection));
+        String serializedConnection = JsonPath.read(connectionRecord,"$.value");
+        int connectionHandle = ConnectionApi.connectionDeserialize(serializedConnection).get();
 
         switch(type) {
             //connection response or ack of proof request
@@ -57,34 +57,30 @@ public class GlobalController {
                 //connection request - At Inviter: after receiving invitation from Invitee
                 if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/request")) {
                     logger.info("aries - connections/1.0/request");
-                    int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
                     int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
 
                     if (connectionState == VcxState.RequestReceived.getValue()) {
                         // new relationship
                         String newPwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
 
-                        connection = ConnectionApi.connectionSerialize(connectionHandle).get();
-                        logger.info("Add record - connection:\n" + prettyJson(connection));
-                        WalletApi.addRecordWallet("connection", newPwDid, connection).get();
+                        serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
+                        logger.info("addRecordWallet (connection, " + newPwDid + ", " + prettyJson(serializedConnection) + ")");
+                        WalletApi.addRecordWallet("connection", newPwDid, serializedConnection).get();
                     }
                     else {
                         logger.severe("Unexpected state type");
                     }
-
-                    ConnectionApi.connectionRelease(connectionHandle);
                 }
                 // STEP.5 - receive connection created ACK
                 // notification ack - At Inviter: after connection request from Invitee
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/notification/1.0/ack")){
                     logger.info("aries - notification/1.0/ack");
-                    int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
                     int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
 
                     if (connectionState == VcxState.Accepted.getValue()) {
-                        connection = ConnectionApi.connectionSerialize(connectionHandle).get();
-                        logger.info("Update record - connection:\n" + prettyJson(connection));
-                        WalletApi.updateRecordWallet("connection", pwDid, connection).get();
+                        serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
+                        logger.info("updateRecordWallet (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
+                        WalletApi.updateRecordWallet("connection", pwDid, serializedConnection).get();
                     }
                     else {
                         logger.severe("Unexpected state type");
@@ -118,43 +114,40 @@ public class GlobalController {
                         logger.info("#13 Issue credential offer to alice");
                         IssuerApi.issuerSendCredentialOffer(credentialHandle, connectionHandle).get();
 
-                        String credential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
-                        String threadId = JsonPath.read(credential,"$.data.issuer_sm.state.OfferSent.thread_id");
-                        logger.info("Add record - credential:\n" + prettyJson(credential));
-                        WalletApi.addRecordWallet("credential", threadId, credential).get();
+                        String serializedCredential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
+                        String threadId = JsonPath.read(serializedCredential,"$.data.issuer_sm.state.OfferSent.thread_id");
+                        logger.info("addRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
+                        WalletApi.addRecordWallet("credential", threadId, serializedCredential).get();
 
                         IssuerApi.issuerCredentialRelease(credentialHandle);
                         CredentialDefApi.credentialDefRelease(credDefHandle);
                     }
-
-                    ConnectionApi.connectionRelease(connectionHandle);
                 }
                 // STEP.8 - send credential
                 // connection response - At Issuer: After issuerSendCredentialOffer
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/issue-credential/1.0/request-credential")) {
                     logger.info("aries - issue-credential/1.0/request-credential");
-                    int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
 
                     String threadId = JsonPath.read(payloadMessage,"$.~thread.thid");
                     String credentialRecord = WalletApi.getRecordWallet("credential", threadId, "").get();
-                    String credential = JsonPath.read(credentialRecord,"$.value");
-                    logger.info("Get record - credential:\n" + prettyJson(credential));
+                    String serializedCredential = JsonPath.read(credentialRecord,"$.value");
+                    logger.info("Get record - credential:\n" + prettyJson(serializedCredential));
 
                     // TODO: Must replace connection_handle in credential - Need to consider better way
-                    credential = JsonPath.parse(credential)
+                    serializedCredential = JsonPath.parse(serializedCredential)
                             .set("$.data.issuer_sm.state.OfferSent.connection_handle", Integer.toUnsignedLong(connectionHandle))
                             .jsonString();
 
-                    int credentialHandle = IssuerApi.issuerCredentialDeserialize(credential).get();
+                    int credentialHandle = IssuerApi.issuerCredentialDeserialize(serializedCredential).get();
                     int credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
 
                     if (credentialState == VcxState.RequestReceived.getValue()) {
                         logger.info("#17 Issue credential to alice");
                         IssuerApi.issuerSendCredential(credentialHandle, connectionHandle).get();
 
-                        credential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
-                        logger.info("Update record - credential:\n" + prettyJson(credential));
-                        WalletApi.updateRecordWallet("credential", threadId, credential).get();
+                        serializedCredential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
+                        logger.info("updateRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
+                        WalletApi.updateRecordWallet("credential", threadId, serializedCredential).get();
                     }
                     else {
                         logger.severe("Unexpected state type");
@@ -205,36 +198,33 @@ public class GlobalController {
                         logger.info("#20 Request proof of degree from alice");
                         ProofApi.proofSendRequest(proofHandle, connectionHandle).get();
 
-                        String proof = ProofApi.proofSerialize(proofHandle).get();
-                        threadId = JsonPath.read(proof,"$.data.verifier_sm.state.PresentationRequestSent.presentation_request.@id");
-                        logger.info("Add record - proof: \n" + prettyJson(proof));
-                        logger.info("threadId: " + threadId);
-                        WalletApi.addRecordWallet("proof", threadId, proof).get();
+                        String serializedProof = ProofApi.proofSerialize(proofHandle).get();
+                        threadId = JsonPath.read(serializedProof,"$.data.verifier_sm.state.PresentationRequestSent.presentation_request.@id");
+                        logger.info("addRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
+                        WalletApi.addRecordWallet("proof", threadId, serializedProof).get();
 
                         ProofApi.proofRelease(proofHandle);
                     }
 
                     IssuerApi.issuerCredentialRelease(credentialHandle);
-                    ConnectionApi.connectionRelease(connectionHandle);
                 }
                 break;
             case "presentation":
                 // STEP.12 - receive & verify proof
                 // present-proof presentation - At Issuer: After proofSendRequest
                 logger.info("presentation");
-                int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
 
                 String threadId = JsonPath.read(payloadMessage, "$.~thread.thid");
                 String proofRecord = WalletApi.getRecordWallet("proof", threadId, "").get();
-                String proof = JsonPath.read(proofRecord, "$.value");
-                logger.info("Get record - proof:\n" + prettyJson(proof));
+                String serializedProof = JsonPath.read(proofRecord, "$.value");
+                logger.info("Get record - proof:\n" + prettyJson(serializedProof));
 
                 // TODO: Must replace connection_handle in proof - Need to consider better way
-                proof = JsonPath.parse(proof)
+                serializedProof = JsonPath.parse(serializedProof)
                         .set("$.data.verifier_sm.state.PresentationRequestSent.connection_handle", Integer.toUnsignedLong(connectionHandle))
                         .jsonString();
 
-                int proofHandle = ProofApi.proofDeserialize(proof).get();
+                int proofHandle = ProofApi.proofDeserialize(serializedProof).get();
                 int proofState = ProofApi.proofUpdateState(proofHandle).get();
 
                 if (proofState == VcxState.Accepted.getValue()) {
@@ -250,17 +240,18 @@ public class GlobalController {
                     }
                 }
 
-                proof = ProofApi.proofSerialize(proofHandle).get();
-                logger.info("Update record - proof: \n" + prettyJson(proof));
-                WalletApi.updateRecordWallet("proof", threadId, proof).get();
+                serializedProof = ProofApi.proofSerialize(proofHandle).get();
+                logger.info("updateRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
+                WalletApi.updateRecordWallet("proof", threadId, serializedProof).get();
 
                 ProofApi.proofRelease(proofHandle);
-                ConnectionApi.connectionRelease(connectionHandle);
                 break;
             default:
                 logger.severe("Unknown type message");
 
         }
+
+        ConnectionApi.connectionRelease(connectionHandle);
 
         return ResponseEntity.ok().build();
     }
