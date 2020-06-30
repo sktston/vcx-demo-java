@@ -58,7 +58,7 @@ public class GlobalController {
                 if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/request")) {
                     logger.info("aries - connections/1.0/request");
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
-                    int connectionState = ConnectionApi.vcxConnectionUpdateStateWithMessage(connectionHandle, JsonPath.parse(message).jsonString()).get();
+                    int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
 
                     if (connectionState == VcxState.RequestReceived.getValue()) {
                         // new relationship
@@ -79,7 +79,7 @@ public class GlobalController {
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/notification/1.0/ack")){
                     logger.info("aries - notification/1.0/ack");
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
-                    int connectionState = ConnectionApi.vcxConnectionUpdateStateWithMessage(connectionHandle, message).get();
+                    int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
 
                     if (connectionState == VcxState.Accepted.getValue()) {
                         connection = ConnectionApi.connectionSerialize(connectionHandle).get();
@@ -217,46 +217,48 @@ public class GlobalController {
                     IssuerApi.issuerCredentialRelease(credentialHandle);
                     ConnectionApi.connectionRelease(connectionHandle);
                 }
+                break;
+            case "presentation":
                 // STEP.12 - receive & verify proof
                 // present-proof presentation - At Issuer: After proofSendRequest
-                else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/present-proof/1.0/presentation")) {
-                    logger.info("aries - present-proof/1.0/presentation");
-                    int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
+                logger.info("presentation");
+                int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
 
-                    String threadId = JsonPath.read(payloadMessage, "$.~thread.thid");
-                    String proofRecord = WalletApi.getRecordWallet("proof", threadId, "").get();
-                    String proof = JsonPath.read(proofRecord, "$.value");
-                    logger.info("Get record - proof:\n" + prettyJson(proof));
+                String threadId = JsonPath.read(payloadMessage, "$.~thread.thid");
+                String proofRecord = WalletApi.getRecordWallet("proof", threadId, "").get();
+                String proof = JsonPath.read(proofRecord, "$.value");
+                logger.info("Get record - proof:\n" + prettyJson(proof));
 
-                    // TODO: Must replace connection_handle in proof - Need to consider better way
-                    proof = JsonPath.parse(proof)
-                            .set("$.data.verifier_sm.state.PresentationRequestSent.connection_handle", Integer.toUnsignedLong(connectionHandle))
-                            .jsonString();
+                // TODO: Must replace connection_handle in proof - Need to consider better way
+                proof = JsonPath.parse(proof)
+                        .set("$.data.verifier_sm.state.PresentationRequestSent.connection_handle", Integer.toUnsignedLong(connectionHandle))
+                        .jsonString();
 
-                    int proofHandle = ProofApi.proofDeserialize(proof).get();
-                    int proofState = ProofApi.proofUpdateState(proofHandle).get();
+                int proofHandle = ProofApi.proofDeserialize(proof).get();
+                int proofState = ProofApi.proofUpdateState(proofHandle).get();
 
-                    if (proofState == VcxState.Accepted.getValue()) {
-                        logger.info("#27 Process the proof provided by alice");
-                        GetProofResult proofResult = ProofApi.getProof(proofHandle, connectionHandle).get();
+                if (proofState == VcxState.Accepted.getValue()) {
+                    logger.info("#27 Process the proof provided by alice");
+                    GetProofResult proofResult = ProofApi.getProof(proofHandle, connectionHandle).get();
 
-                        logger.info("#28 Check if proof is valid");
-                        if (proofResult.getProof_state() == ProofState.Validated.getValue()) {
-                            logger.info("Proof is verified");
-                        }
-                        else {
-                            logger.info("Could not verify proof");
-                        }
+                    logger.info("#28 Check if proof is valid");
+                    if (proofResult.getProof_state() == ProofState.Validated.getValue()) {
+                        logger.info("Proof is verified");
                     }
-
-                    proof = ProofApi.proofSerialize(proofHandle).get();
-                    logger.info("Update record - proof: \n" + prettyJson(proof));
-                    WalletApi.updateRecordWallet("proof", threadId, proof).get();
-
-                    ProofApi.proofRelease(proofHandle);
-                    ConnectionApi.connectionRelease(connectionHandle);
+                    else {
+                        logger.info("Could not verify proof");
+                    }
                 }
+
+                proof = ProofApi.proofSerialize(proofHandle).get();
+                logger.info("Update record - proof: \n" + prettyJson(proof));
+                WalletApi.updateRecordWallet("proof", threadId, proof).get();
+
+                ProofApi.proofRelease(proofHandle);
+                ConnectionApi.connectionRelease(connectionHandle);
+                break;
             default:
+                logger.severe("Unknown type message");
 
         }
 

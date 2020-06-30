@@ -55,7 +55,7 @@ public class GlobalController {
                 if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/response")){
                     logger.info("aries - connections/1.0/response");
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
-                    int connectionState = ConnectionApi.vcxConnectionUpdateStateWithMessage(connectionHandle, message).get();
+                    int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
 
                     if (connectionState == VcxState.Accepted.getValue()) {
                         connection = ConnectionApi.connectionSerialize(connectionHandle).get();
@@ -106,7 +106,8 @@ public class GlobalController {
                     logger.info("credential-offer");
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
 
-                    String credentialOffer = JsonPath.parse((List)JsonPath.read(payloadMessage, "$")).jsonString();
+                    String offers = CredentialApi.credentialGetOffers(connectionHandle).get();
+                    String credentialOffer = JsonPath.parse((LinkedHashMap)JsonPath.read(offers, "$.[0]")).jsonString();
                     logger.info("credential offer:\n" + prettyJson(credentialOffer));
 
                     // Create a credential object from the credential offer
@@ -131,8 +132,8 @@ public class GlobalController {
                     logger.info("credential");
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
 
-                    String claimOfferId = JsonPath.read(payloadMessage, "$.claim_offer_id"); // same as threadId
-                    String credentialRecord = WalletApi.getRecordWallet("credential", claimOfferId, "").get();
+                    String threadId = JsonPath.read(payloadMessage, "$.~thread.thid");
+                    String credentialRecord = WalletApi.getRecordWallet("credential", threadId, "").get();
                     String credential = JsonPath.read(credentialRecord, "$.value");
 
                     // TODO: Must replace connection_handle in credential - Need to consider better way
@@ -152,7 +153,6 @@ public class GlobalController {
 
                     //Serialize the object
                     credential = CredentialApi.credentialSerialize(credentialHandle).get();
-                    String threadId = JsonPath.read(credential, "$.data.holder_sm.thread_id");
                     logger.info("Update record credential: " + prettyJson(credential));
                     WalletApi.updateRecordWallet("credential", threadId, credential).get();
 
@@ -165,7 +165,8 @@ public class GlobalController {
                 if (true) {
                     int connectionHandle = ConnectionApi.connectionDeserialize(connection).get();
 
-                    String proofRequest = JsonPath.parse((LinkedHashMap)JsonPath.read(payloadMessage, "$")).jsonString();
+                    String requests = DisclosedProofApi.proofGetRequests(connectionHandle).get();
+                    String proofRequest = JsonPath.parse((LinkedHashMap)JsonPath.read(requests, "$.[0]")).jsonString();
                     logger.info("proof request:\n" + prettyJson(proofRequest));
 
                     logger.info("#23 Create a Disclosed proof object from proof request");
@@ -195,9 +196,9 @@ public class GlobalController {
                     DisclosedProofApi.proofRelease(proofHandle);
                     ConnectionApi.connectionRelease(connectionHandle);
                 }
-
                 break;
             default:
+                logger.severe("Unknown type message");
 
         }
 

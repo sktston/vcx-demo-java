@@ -48,8 +48,8 @@ public class GlobalService {
                 "}").jsonString();
 
         // Communication method. aries.
-        provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "3.0").jsonString();
-        logger.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 3.0");
+        provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "4.0").jsonString();
+        logger.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
 
         // add webhook url to config
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "webhook_url", webhookUrl).jsonString();
