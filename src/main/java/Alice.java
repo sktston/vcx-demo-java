@@ -85,8 +85,11 @@ public class Alice {
         }
 
         logger.info("#11 Wait for faber to issue a credential offer");
-        Thread.sleep(5000);
         String offers = CredentialApi.credentialGetOffers(connectionHandle).get();
+        while (JsonPath.read(offers, "$.length()").equals(0)) {
+            Thread.sleep(2000);
+            offers = CredentialApi.credentialGetOffers(connectionHandle).get();
+        }
         logger.info("Alice found " + JsonPath.read(offers, "$.length()") + " credential offers.");
         String credentialOffer = JsonPath.parse((LinkedHashMap)JsonPath.read(offers, "$.[0]")).jsonString();
         logger.info("credential offer:\n" + prettyJson(credentialOffer));
@@ -106,7 +109,7 @@ public class Alice {
 
         logger.info("#22 Poll agency for a proof request");
         String requests = DisclosedProofApi.proofGetRequests(connectionHandle).get();
-        while (JsonPath.read(requests, "$.length()").equals("0")) {
+        while (JsonPath.read(requests, "$.length()").equals(0)) {
             Thread.sleep(2000);
             requests = DisclosedProofApi.proofGetRequests(connectionHandle).get();
         }
