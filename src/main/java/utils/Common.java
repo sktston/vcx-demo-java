@@ -16,6 +16,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.*;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Random;
 import java.util.logging.*;
 
@@ -178,5 +179,10 @@ public class Common {
                 .block(Duration.ofSeconds(3));
 
         return response;
+    }
+
+    public static String getUidWithMessages(String messages) {
+        String message = JsonPath.parse((LinkedHashMap)JsonPath.read(messages,"$.[0].msgs[0]")).jsonString();
+        return JsonPath.read(message, "$.uid");
     }
 }

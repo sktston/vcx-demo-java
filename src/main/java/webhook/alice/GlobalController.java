@@ -107,6 +107,10 @@ public class GlobalController {
                     String credentialOffer = JsonPath.parse((LinkedHashMap)JsonPath.read(offers, "$.[0]")).jsonString();
                     logger.info("credential offer:\n" + prettyJson(credentialOffer));
 
+                    // Update agency message status manually (xxxUpdateState automatically update message status, but not here)
+                    UtilsApi.vcxUpdateMessages("MS-106",
+                            "[{\"pairwiseDID\":\"" + body.getPwDid() + "\",\"uids\":[\"" + body.getMsgUid() + "\"]}]");
+
                     // Create a credential object from the credential offer
                     int credentialHandle = CredentialApi.credentialCreateWithOffer("credential", credentialOffer).get();
 
@@ -162,6 +166,10 @@ public class GlobalController {
                     String requests = DisclosedProofApi.proofGetRequests(connectionHandle).get();
                     String proofRequest = JsonPath.parse((LinkedHashMap)JsonPath.read(requests, "$.[0]")).jsonString();
                     logger.info("proof request:\n" + prettyJson(proofRequest));
+
+                    // Update agency message status manually (xxxUpdateState automatically update message status, but not here)
+                    UtilsApi.vcxUpdateMessages("MS-106",
+                            "[{\"pairwiseDID\":\"" + body.getPwDid() + "\",\"uids\":[\"" + body.getMsgUid() + "\"]}]");
 
                     logger.info("#23 Create a Disclosed proof object from proof request");
                     int proofHandle = DisclosedProofApi.proofCreateWithRequest("proof", proofRequest).get();

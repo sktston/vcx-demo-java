@@ -94,6 +94,13 @@ public class Alice {
         String credentialOffer = JsonPath.parse((LinkedHashMap)JsonPath.read(offers, "$.[0]")).jsonString();
         logger.info("credential offer:\n" + prettyJson(credentialOffer));
 
+        // Update agency message status manually (xxxUpdateState automatically update message status, but not here)
+        String pwDidAtOffer = ConnectionApi.connectionGetPwDid(connectionHandle).get();
+        String messagesAtOffer = UtilsApi.vcxGetMessages("MS-103", null, pwDidAtOffer).get();
+        String uidAtOffer = Common.getUidWithMessages(messagesAtOffer);
+        UtilsApi.vcxUpdateMessages("MS-106",
+                "[{\"pairwiseDID\":\"" + pwDidAtOffer + "\",\"uids\":[\"" + uidAtOffer + "\"]}]");
+
         // Create a credential object from the credential offer
         int credentialHandle = CredentialApi.credentialCreateWithOffer("credential", credentialOffer).get();
 
@@ -116,6 +123,13 @@ public class Alice {
         logger.info("Alice found " + JsonPath.read(requests, "$.length()") + " proof requests.");
         String proofRequest = JsonPath.parse((LinkedHashMap)JsonPath.read(requests, "$.[0]")).jsonString();
         logger.info("proof request:\n" + prettyJson(proofRequest));
+
+        // Update agency message status manually (xxxUpdateState automatically update message status, but not here)
+        String pwDidAtRequest = ConnectionApi.connectionGetPwDid(connectionHandle).get();
+        String messagesAtRequest = UtilsApi.vcxGetMessages("MS-103", null, pwDidAtRequest).get();
+        String uidAtRequest = Common.getUidWithMessages(messagesAtRequest);
+        UtilsApi.vcxUpdateMessages("MS-106",
+                "[{\"pairwiseDID\":\"" + pwDidAtRequest + "\",\"uids\":[\"" + uidAtRequest + "\"]}]");
 
         logger.info("#23 Create a Disclosed proof object from proof request");
         int proofHandle = DisclosedProofApi.proofCreateWithRequest("proof", proofRequest).get();
