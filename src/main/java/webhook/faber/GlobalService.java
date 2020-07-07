@@ -52,8 +52,10 @@ public class GlobalService {
         logger.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
 
         // add webhook url to config
-        provisionConfig = JsonPath.parse(provisionConfig).put("$", "webhook_url", webhookUrl).jsonString();
-        logger.info("Running with webhook notifications enabled! Webhook url = " + webhookUrl);
+        if (supportVcxUpdateWebhookUrl) {
+            provisionConfig = JsonPath.parse(provisionConfig).put("$", "webhook_url", webhookUrl).jsonString();
+            logger.info("Running with webhook notifications enabled! Webhook url = " + webhookUrl);
+        }
 
         logger.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig));
         String vcxConfig = UtilsApi.vcxProvisionAgent(provisionConfig);
