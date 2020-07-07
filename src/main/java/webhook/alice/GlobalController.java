@@ -95,7 +95,7 @@ public class GlobalController {
                     DisclosedProofApi.proofRelease(proofHandle);
 
                     // Supposed here is the end
-                    logger.info("Faber demo is completed (Exit manually)");
+                    logger.info("Alice demo is completed (Exit manually)");
                 }
                 break;
             // STEP.7 - accept credential offer & request credential
