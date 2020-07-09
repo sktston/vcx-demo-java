@@ -25,11 +25,6 @@ public class GlobalService {
 
     static final String webhookUrl = "http://localhost:7201/notifications";
 
-    // node agency is not support vcxUpdateWebhookUrl currently
-    // therefore we directly communicate with agency for now
-    // dummy cloud agent -> true, node agency -> false
-    static final boolean supportVcxUpdateWebhookUrl = false;
-
     @PostConstruct
     public void initialize() throws Exception {
         logger.info("#0 Initialize");
@@ -52,10 +47,8 @@ public class GlobalService {
         logger.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
 
         // add webhook url to config
-        if (supportVcxUpdateWebhookUrl) {
-            provisionConfig = JsonPath.parse(provisionConfig).put("$", "webhook_url", webhookUrl).jsonString();
-            logger.info("Running with webhook notifications enabled! Webhook url = " + webhookUrl);
-        }
+        provisionConfig = JsonPath.parse(provisionConfig).put("$", "webhook_url", webhookUrl).jsonString();
+        logger.info("Running with webhook notifications enabled! Webhook url = " + webhookUrl);
 
         logger.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig));
         String vcxConfig = UtilsApi.vcxProvisionAgent(provisionConfig);
@@ -70,13 +63,6 @@ public class GlobalService {
 
         logger.info("addRecordWallet (vcxConfig, defaultVcxConfig, " + prettyJson(vcxConfig) + ")");
         WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig).get();
-
-        if (supportVcxUpdateWebhookUrl) {
-            // TODO: may vcxUpdateWebhookUrl is called during vcxInitWithConfig
-            VcxApi.vcxUpdateWebhookUrl(webhookUrl).get();
-        } else {
-            Common.agencyUpdateWebhookUrl(provisionConfig, vcxConfig, webhookUrl);
-        }
 
         createSchema();
         createCredentialDefinition();

@@ -165,22 +165,6 @@ public class Common {
         return sb.toString();
     }
 
-    public static String agencyUpdateWebhookUrl(String provisionConfig, String vcxConfig, String webhookUrl) throws Exception {
-        String body = JsonPath.parse("{ webhookUrl : '" + webhookUrl + "' }").jsonString();
-
-        WebClient webClient = WebClient.create(JsonPath.read(provisionConfig, "$.agency_url"));
-        String response =  webClient.post()
-                .uri("/agent/" + JsonPath.read(vcxConfig, "$.remote_to_sdk_did"))
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON)
-                .syncBody(body)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block(Duration.ofSeconds(3));
-
-        return response;
-    }
-
     public static String getUidWithMessages(String messages) {
         String message = JsonPath.parse((LinkedHashMap)JsonPath.read(messages,"$.[0].msgs[0]")).jsonString();
         return JsonPath.read(message, "$.uid");
