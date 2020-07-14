@@ -57,7 +57,11 @@ public class GlobalController {
                 //connection request - At Inviter: after receiving invitation from Invitee
                 if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/request")) {
                     logger.info("aries - connections/1.0/request");
+                    logger.info("Before ConnectionUpdateState - serializedConnection:" +
+                            prettyJson(ConnectionApi.connectionSerialize(connectionHandle).get()));
                     int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
+                    logger.info("After ConnectionUpdateState - serializedConnection:" +
+                            prettyJson(ConnectionApi.connectionSerialize(connectionHandle).get()));
 
                     if (connectionState == VcxState.RequestReceived.getValue()) {
                         // new relationship
