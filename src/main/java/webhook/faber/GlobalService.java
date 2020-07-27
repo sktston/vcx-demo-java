@@ -32,8 +32,8 @@ public class GlobalService {
 
         long utime = System.currentTimeMillis() / 1000;
         String provisionConfig  = JsonPath.parse("{" +
-                //"  agency_url: 'http://15.165.161.165:8080'," + // skt test dummy cloud agent
-                "  agency_url: 'http://localhost:8080'," + // use local
+                "  agency_url: 'http://15.165.161.165:8080'," + // skt test dummy cloud agent
+                //"  agency_url: 'http://localhost:8080'," + // use local
                 "  agency_did: 'VsKV7grR1BUE29mG2Fm2kX'," +
                 "  agency_verkey: 'Hezce2UWMZ3wUhVkh2LfKSs8nDzWwzs2Win7EzNN3YaR'," +
                 "  wallet_name: 'node_vcx_demo_faber_wallet_" + utime + "'," +
@@ -56,13 +56,12 @@ public class GlobalService {
         vcxConfig = JsonPath.parse(vcxConfig).put("$", "institution_name", "faber")
                 .put("$", "institution_logo_url", "http://robohash.org/234")
                 .put("$", "protocol_version", "2")
-                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn").jsonString(); // file configured for skt testnet
-        //.put("$", "genesis_path", "http://54.180.86.51/genesis").jsonString(); // or url can be configured
+                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn").jsonString();
         logger.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig));
         VcxApi.vcxInitWithConfig(vcxConfig).get();
 
         logger.info("addRecordWallet (vcxConfig, defaultVcxConfig, " + prettyJson(vcxConfig) + ")");
-        WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig).get();
+        WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig, "").get();
 
         createSchema();
         createCredentialDefinition();
@@ -89,7 +88,7 @@ public class GlobalService {
         String schema = SchemaApi.schemaSerialize(schemaHandle).get();
 
         logger.info("addRecordWallet - (schema, defaultSchema, " + prettyJson(schema) + ")");
-        WalletApi.addRecordWallet("schema", "defaultSchema", schema).get();
+        WalletApi.addRecordWallet("schema", "defaultSchema", schema, "").get();
         SchemaApi.schemaRelease(schemaHandle);
     }
 
@@ -125,7 +124,7 @@ public class GlobalService {
         String credDef = CredentialDefApi.credentialDefSerialize(credDefHandle).get();
 
         logger.info("addRecordWallet - (credentialDef, defaultCredentialDef, " + prettyJson(credDef) + ")");
-        WalletApi.addRecordWallet("credentialDef", "defaultCredentialDef", credDef).get();
+        WalletApi.addRecordWallet("credentialDef", "defaultCredentialDef", credDef, "").get();
         CredentialDefApi.credentialDefRelease(credDefHandle);
     }
 
@@ -139,12 +138,12 @@ public class GlobalService {
         logger.info(details);
 
         logger.info("addRecordWallet - (invitation, defaultInvitation, " + prettyJson(details) + ")");
-        WalletApi.addRecordWallet("invitation", "defaultInvitation", details).get();
+        WalletApi.addRecordWallet("invitation", "defaultInvitation", details, "").get();
 
         String serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
         String pwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
         logger.info("addRecordWallet - (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
-        WalletApi.addRecordWallet("connection", pwDid, serializedConnection).get();
+        WalletApi.addRecordWallet("connection", pwDid, serializedConnection, "").get();
         ConnectionApi.connectionRelease(connectionHandle);
     }
 }

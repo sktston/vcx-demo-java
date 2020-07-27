@@ -42,7 +42,7 @@ dependencies {
     }
 
     // wrapper for vcx library
-    implementation 'com.evernym:vcx:0.8.0-sktston-SNAPSHOT' // use maven repository
+    implementation 'com.evernym:vcx:0.8.2-sktston-SNAPSHOT' // use maven repository
     //implementation fileTree(dir: '../build/libs', include: ['*.jar']) // use local lib
 
     // (temporal) wrapper for indy library - for register_did

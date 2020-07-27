@@ -121,7 +121,7 @@ public class GlobalController {
                     String serializedCredential = CredentialApi.credentialSerialize(credentialHandle).get();
                     String threadId = JsonPath.read(serializedCredential, "$.data.holder_sm.thread_id");
                     logger.info("addRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
-                    WalletApi.addRecordWallet("credential", threadId, serializedCredential).get();
+                    WalletApi.addRecordWallet("credential", threadId, serializedCredential, "").get();
 
                     CredentialApi.credentialRelease(credentialHandle);
                 }
@@ -193,7 +193,7 @@ public class GlobalController {
                     String serializedProof = DisclosedProofApi.proofSerialize(proofHandle).get();
                     String threadId = JsonPath.read(serializedProof,"$.data.prover_sm.thread_id");
                     logger.info("addRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
-                    WalletApi.addRecordWallet("proof", threadId, serializedProof).get();
+                    WalletApi.addRecordWallet("proof", threadId, serializedProof, "").get();
 
                     DisclosedProofApi.proofRelease(proofHandle);
                 }

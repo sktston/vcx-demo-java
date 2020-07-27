@@ -65,7 +65,7 @@ public class GlobalController {
 
                         serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
                         logger.info("addRecordWallet (connection, " + newPwDid + ", " + prettyJson(serializedConnection) + ")");
-                        WalletApi.addRecordWallet("connection", newPwDid, serializedConnection).get();
+                        WalletApi.addRecordWallet("connection", newPwDid, serializedConnection, "").get();
                     }
                     else {
                         logger.severe("Unexpected state type");
@@ -117,7 +117,7 @@ public class GlobalController {
                         String serializedCredential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
                         String threadId = JsonPath.read(serializedCredential,"$.data.issuer_sm.state.OfferSent.thread_id");
                         logger.info("addRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
-                        WalletApi.addRecordWallet("credential", threadId, serializedCredential).get();
+                        WalletApi.addRecordWallet("credential", threadId, serializedCredential, "").get();
 
                         IssuerApi.issuerCredentialRelease(credentialHandle);
                         CredentialDefApi.credentialDefRelease(credDefHandle);
@@ -201,7 +201,7 @@ public class GlobalController {
                         String serializedProof = ProofApi.proofSerialize(proofHandle).get();
                         threadId = JsonPath.read(serializedProof,"$.data.verifier_sm.state.PresentationRequestSent.presentation_request.@id");
                         logger.info("addRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
-                        WalletApi.addRecordWallet("proof", threadId, serializedProof).get();
+                        WalletApi.addRecordWallet("proof", threadId, serializedProof, "").get();
 
                         ProofApi.proofRelease(proofHandle);
                     }

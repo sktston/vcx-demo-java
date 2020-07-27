@@ -33,8 +33,8 @@ public class GlobalService {
         // static configuration
         long utime = System.currentTimeMillis() / 1000;
         String provisionConfig = JsonPath.parse("{" +
-                //"  agency_url: 'http://15.165.161.165:8080'," + // skt test dummy cloud agent
-                "  agency_url: 'http://localhost:8080'," + // use local
+                "  agency_url: 'http://15.165.161.165:8080'," + // skt test dummy cloud agent
+                //"  agency_url: 'http://localhost:8080'," + // use local
                 "  agency_did: 'VsKV7grR1BUE29mG2Fm2kX'," +
                 "  agency_verkey: 'Hezce2UWMZ3wUhVkh2LfKSs8nDzWwzs2Win7EzNN3YaR'," +
                 "  wallet_name: 'node_vcx_demo_alice_wallet_" + utime + "'," +
@@ -57,13 +57,12 @@ public class GlobalService {
         vcxConfig = JsonPath.parse(vcxConfig).put("$", "institution_name", "alice")
                 .put("$", "institution_logo_url", "http://robohash.org/345")
                 .put("$", "protocol_version", "2")
-                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn").jsonString(); // file configured for skt testnet
-        //.put("$", "genesis_path", "http://54.180.86.51/genesis").jsonString(); // or url can be configured
+                .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn").jsonString();
         logger.info("#9 Initialize libvcx with new configuration\n" + prettyJson(vcxConfig));
         VcxApi.vcxInitWithConfig(vcxConfig).get();
 
         logger.info("addRecordWallet (vcxConfig, defaultVcxConfig, " + prettyJson(vcxConfig) + ")");
-        WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig).get();
+        WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig, "").get();
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -87,7 +86,7 @@ public class GlobalService {
         String connection = ConnectionApi.connectionSerialize(connectionHandle).get();
         String pwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
         logger.info("addRecordWallet (connection, " + pwDid + ", " + prettyJson(connection) + ")");
-        WalletApi.addRecordWallet("connection", pwDid, connection).get();
+        WalletApi.addRecordWallet("connection", pwDid, connection, "").get();
         ConnectionApi.connectionRelease(connectionHandle);
     }
 }
