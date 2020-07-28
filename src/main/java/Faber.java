@@ -38,8 +38,7 @@ public class Faber {
 
         long utime = System.currentTimeMillis() / 1000;
         String provisionConfig  = JsonPath.parse("{" +
-                "  agency_url: 'http://15.165.161.165:8080'," + // skt test dummy cloud agent
-                //"  agency_url: 'http://localhost:8080'," + // use local
+                "  agency_url: 'http://13.125.5.122:8080'," + // skt node agency testnet
                 "  agency_did: 'VsKV7grR1BUE29mG2Fm2kX'," +
                 "  agency_verkey: 'Hezce2UWMZ3wUhVkh2LfKSs8nDzWwzs2Win7EzNN3YaR'," +
                 "  wallet_name: 'node_vcx_demo_faber_wallet_" + utime + "'," +
