@@ -157,7 +157,7 @@ public class GlobalController {
                     // After issuing credential, issuer does not receive Ack for that
                     // We send proof request here
                     if (AUTO_SEND_PROOF_REQUEST) {
-                        Thread.sleep(1000); // wait 1 sec to get credential at holder
+                        Thread.sleep(3000); // wait 3 sec to get credential at holder
 
                         String vcxConfigRecord = WalletApi.getRecordWallet("vcxConfig", "defaultVcxConfig", "").get();
                         String vcxConfig = JsonPath.read(vcxConfigRecord,"$.value");
