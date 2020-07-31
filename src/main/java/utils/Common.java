@@ -6,18 +6,15 @@ import com.google.gson.JsonParser;
 import com.jayway.jsonpath.JsonPath;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.commons.cli.*;
-import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.client.WebClient;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.*;
-import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.*;
 
 public class Common {
@@ -114,59 +111,29 @@ public class Common {
         return null;
     }
 
-    public static String requestGet(String requestUrl, String body) throws Exception {
-        URL url = new URL(requestUrl);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Accept-Charset", "UTF-8");
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(5000);
-
-        StringBuilder sb = new StringBuilder();
-        if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
-            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
-            String line;
-            while ((line = br.readLine()) != null) {
-                sb.append(line).append("\n");
-            }
-            br.close();
-        } else {
-            throw new IOException("ResponseCode is not HTTP_OK" + conn.getResponseCode());
-        }
-        return sb.toString();
-    }
-
-    public static String requestPost(String requestUrl, String body) throws Exception {
-        URL url = new URL(requestUrl);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setDoOutput(true);
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Accept-Charset", "UTF-8");
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(5000);
-
-        OutputStream os = conn.getOutputStream();
-        os.write(body.getBytes("UTF-8"));
-        os.flush();
-
-        StringBuilder sb = new StringBuilder();
-        if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
-            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
-            String line;
-            while ((line = br.readLine()) != null) {
-                sb.append(line).append("\n");
-            }
-            br.close();
-        } else {
-            throw new IOException("ResponseCode is not HTTP_OK" + conn.getResponseCode());
-        }
-        return sb.toString();
-    }
-
     public static String getUidWithMessages(String messages) {
         String message = JsonPath.parse((LinkedHashMap)JsonPath.read(messages,"$.[0].msgs[0]")).jsonString();
         return JsonPath.read(message, "$.uid");
+    }
+
+
+    public static String requestGET(String url) {
+        OkHttpClient client = new OkHttpClient.Builder()
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .connectTimeout(60, TimeUnit.SECONDS)
+                .callTimeout(60, TimeUnit.SECONDS)
+                .build();
+        Request request = new Request.Builder()
+                .url(url)
+                .get()
+                .build();
+        try {
+            Response response = client.newCall(request).execute();
+            return response.body().string();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

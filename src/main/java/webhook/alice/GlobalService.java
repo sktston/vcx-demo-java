@@ -8,14 +8,13 @@ import com.jayway.jsonpath.JsonPath;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 import utils.Common;
 
 import javax.annotation.PostConstruct;
-import java.time.Duration;
 import java.util.logging.Logger;
 
 import static utils.Common.prettyJson;
+import static utils.Common.requestGET;
 
 @Service
 public class GlobalService {
@@ -69,12 +68,7 @@ public class GlobalService {
 
         // STEP.2 - receive invitation & create connection A2F
         // accept invitation
-        WebClient webClient = WebClient.create();
-        String details = WebClient.create().get()
-                .uri(invitationUrl)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block(Duration.ofSeconds(3));
+        String details = requestGET(invitationUrl);
         logger.info("details" + details);
 
         logger.info("#10 Convert to valid json and string and create a connection to faber");
