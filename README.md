@@ -88,16 +88,3 @@ described below.
 
 When Alice starts, it automatically gets an invitation from Faber's `localhost:7201/invitations`. So, in a situation 
 where Faber is running normally, run Alice.
-
-### (Temporal) New DID registration demo
-Since LibVCX does not provide APIs to register a new DID, this code was written using LibIndy.
-
-- Usage (default) - SEED (Keyphrase of DID): Random, ROLE: ENDORSER, ALIAS: null
-```
-./gradlew register_did
-```
-- Usage with parameters (can be omitted)
-```
-SEED=00000000000000000000000Endorser1 ROLE=ENDORSER ALIAS=faber ./gradlew register_did
-```
-
