@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import utils.Common;
+import utils.NotificationsRequestDto;
 import utils.VcxState;
 
 import java.util.LinkedHashMap;

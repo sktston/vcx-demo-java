@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import utils.Common;
+import utils.NotificationsRequestDto;
 import utils.ProofState;
 import utils.VcxState;
 
