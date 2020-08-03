@@ -23,9 +23,6 @@ import static utils.Common.prettyJson;
 public class GlobalController {
     // get logger for demo - INFO configured
     static final Logger logger = Common.getDemoLogger();
-    static final Boolean AUTO_SEND_OFFER = true;
-    static final Boolean AUTO_SEND_CREDENTIAL = true;
-    static final Boolean AUTO_SEND_PROOF_REQUEST = true;
 
     @PostMapping("/notifications")
     public ResponseEntity notificationsHandler(@RequestBody(required = false) NotificationsRequestDto body) throws Exception {

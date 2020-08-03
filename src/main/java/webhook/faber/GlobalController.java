@@ -8,7 +8,6 @@ import com.evernym.sdk.vcx.proof.ProofApi;
 import com.evernym.sdk.vcx.utils.UtilsApi;
 import com.evernym.sdk.vcx.wallet.WalletApi;
 import com.jayway.jsonpath.JsonPath;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import utils.Common;
@@ -27,9 +26,6 @@ public class GlobalController {
     static final Logger logger = Common.getDemoLogger();
     static final boolean AUTO_SEND_OFFER = true;
     static final boolean AUTO_SEND_PROOF_REQUEST = true;
-
-    @Autowired
-    GlobalService globalService;
 
     @PostMapping("/notifications")
     public ResponseEntity notificationsHandler(@RequestBody(required = false) NotificationsRequestDto body) throws Exception {
