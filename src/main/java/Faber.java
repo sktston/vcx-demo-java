@@ -1,5 +1,6 @@
 import com.evernym.sdk.vcx.connection.ConnectionApi;
 import com.evernym.sdk.vcx.credentialDef.CredentialDefApi;
+import com.evernym.sdk.vcx.credentialDef.CredentialDefPrepareForEndorserResult;
 import com.evernym.sdk.vcx.issuer.IssuerApi;
 import com.evernym.sdk.vcx.proof.GetProofResult;
 import com.evernym.sdk.vcx.proof.ProofApi;
@@ -9,8 +10,10 @@ import com.evernym.sdk.vcx.vcx.VcxApi;
 
 import com.jayway.jsonpath.JsonPath;
 
+import okhttp3.*;
 import org.apache.commons.cli.CommandLine;
 
+import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.logging.Logger;
@@ -19,12 +22,13 @@ import utils.Common;
 import utils.ProofState;
 import utils.VcxState;
 
-import static utils.Common.prettyJson;
-import static utils.Common.getRandomInt;
+import static utils.Common.*;
 
 public class Faber {
     // get logger for demo - INFO configured
     static final Logger logger = Common.getDemoLogger();
+    static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
+    static final String tailsServerUrl = "http://13.124.169.12";
 
     public static void main(String[] args) throws Exception {
         // Library logger setup - ERROR|WARN|INFO|DEBUG|TRACE
@@ -44,7 +48,7 @@ public class Faber {
                 "  wallet_name: 'node_vcx_demo_faber_wallet_" + utime + "'," +
                 "  wallet_key: '123'," +
                 "  payment_method: 'null'," +
-                "  enterprise_seed: '000000000000000000000000Steward1'" + // SEED of faber's DID already registered in the ledger
+                "  enterprise_seed: '00000000000000000000000Endorser1'" + // SEED of faber's DID already registered in the ledger
                 "}").jsonString();
 
         // Communication method. aries.
@@ -95,18 +99,53 @@ public class Faber {
                 "  tag: 'tag." + version + "'," +
                 "  config: {" +
                 "    support_revocation: true," +
-                "    tails_file: '/tmp/tails'," +
-                "    max_creds: 5" +
+                "    tails_file: '" + tailsFileRoot + "'," + // tails file is created here when credentialDefPrepareForEndorser
+                "    max_creds: 10" +
                 "  }" +
                 "}").jsonString();
-        logger.info("#4 Create a new credential definition on the ledger: \n" + prettyJson(credDefData));
-        int credDefHandle = CredentialDefApi.credentialDefCreate("'cred_def_uuid'",
+        logger.info("#4-1 Create a new credential definition object: \n" + prettyJson(credDefData));
+        CredentialDefPrepareForEndorserResult credDefObject = CredentialDefApi.credentialDefPrepareForEndorser("'cred_def_uuid'",
                 "cred_def_name",
                 JsonPath.read(credDefData, "$.schemaId"),
                 null,
                 JsonPath.read(credDefData, "$.tag"),
                 JsonPath.parse((LinkedHashMap)JsonPath.read(credDefData,"$.config")).jsonString(),
-                0).get();
+                JsonPath.read(vcxConfig, "$.institution_did")).get();
+
+        int credDefHandle = credDefObject.getCredentialDefHandle();
+        String credDefTrx = credDefObject.getCredDefTransaction();
+        String revRegDefTrx = credDefObject.getRevocRegDefTransaction();
+        String revRegId = JsonPath.read(revRegDefTrx, "$.operation.id");
+        String tailsFileHash = JsonPath.read(revRegDefTrx, "$.operation.value.tailsHash");
+        String revRegEntryTrx = credDefObject.getRevocRegEntryTransaction();
+
+        logger.info("#4-2 Publish credential definition and revocation registry on the ledger");
+        UtilsApi.vcxEndorseTransaction(credDefTrx).get();
+        // we replace tails file location from local to tails server url
+        revRegDefTrx = JsonPath.parse(revRegDefTrx).set("$.operation.value.tailsLocation", tailsServerUrl + "/" + revRegId).jsonString();
+        UtilsApi.vcxEndorseTransaction(revRegDefTrx).get();
+        UtilsApi.vcxEndorseTransaction(revRegEntryTrx).get();
+        int credentialDefState = CredentialDefApi.credentialDefUpdateState(credDefHandle).get();
+        if (credentialDefState == 1)
+            logger.info("Published successfully");
+        else
+            logger.warning("Publishing is failed");
+
+        logger.info("#4-3 Upload tails file to tails filer server: " + tailsServerUrl + "/" + revRegId);
+        RequestBody body = new MultipartBody.Builder().setType(MultipartBody.FORM)
+                .addFormDataPart("genesis","genesis.txn",
+                        RequestBody.create(new File(System.getProperty("user.dir") + "/genesis.txn"),
+                                MediaType.parse("application/octet-stream")))
+                .addFormDataPart("tails",tailsFileHash,
+                        RequestBody.create(new File(tailsFileRoot + "/" + tailsFileHash),
+                                MediaType.parse("application/octet-stream")))
+                .build();
+        String response = requestPUT(tailsServerUrl + "/" + revRegId, body);
+        if (response.equals(tailsFileHash))
+            logger.info("Uploaded successfully - tails file: " + tailsFileHash);
+        else
+            logger.warning("Uploading is failed - tails file: " + tailsFileHash);
+
         String credDefId = CredentialDefApi.credentialDefGetCredentialDefId(credDefHandle).get();
         logger.info("Created credential with id " + credDefId + " and handle " + credDefHandle);
 
@@ -194,10 +233,12 @@ public class Faber {
         logger.info("#19 Create a Proof object\n" +
                 "proofAttributes: " + prettyJson(proofAttributes) + "\n" +
                 "proofPredicates: " + prettyJson(proofPredicates));
+
+        long unixTime = System.currentTimeMillis() / 1000L;
         int proofHandle = ProofApi.proofCreate("proof_uuid",
                 proofAttributes,
                 proofPredicates,
-                "{}",
+                "{\"to\": " + unixTime + "}",
                 "proof_from_alice").get();
 
         logger.info("#20 Request proof of degree from alice");
@@ -208,6 +249,10 @@ public class Faber {
         while (proofState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             proofState = ProofApi.proofUpdateState(proofHandle).get();
+            if (proofState == VcxState.None.getValue()) {
+                logger.info("Incorrect proof is received");
+                System.exit(0);
+            }
         }
 
         logger.info("#27 Process the proof provided by alice");
@@ -215,10 +260,16 @@ public class Faber {
 
         logger.info("#28 Check if proof is valid");
         if (proofResult.getProof_state() == ProofState.Validated.getValue()) {
+            String encodedProof = JsonPath.read(proofResult.getResponse_data(), "$.presentations~attach.[0].data.base64");
+            String decodedProof = decodeBase64(encodedProof);
+            String requestedProof = JsonPath.parse((LinkedHashMap)JsonPath.read(decodedProof, "$.requested_proof")).jsonString();
+            logger.info("Requested proof:" + prettyJson(requestedProof));
             logger.info("Proof is verified");
+        } else if (proofResult.getProof_state() == ProofState.Invalid.getValue()) {
+            logger.warning("Proof verification failed, credential has been revoked");
         }
         else {
-            logger.info("Could not verify proof");
+            logger.warning("Unexpected proof state" + proofResult.getProof_state());
         }
 
         System.exit(0);

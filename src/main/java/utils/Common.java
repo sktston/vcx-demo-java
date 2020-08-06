@@ -6,12 +6,15 @@ import com.google.gson.JsonParser;
 import com.jayway.jsonpath.JsonPath;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import io.leonard.Base58;
+import okhttp3.*;
 import org.apache.commons.cli.*;
 
+import java.io.File;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -116,17 +119,63 @@ public class Common {
         return JsonPath.read(message, "$.uid");
     }
 
+    public static String getHash(byte[] bytes) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        md.update(bytes);
+        byte[] digest = md.digest();
+        return Base58.encode(digest);
+    }
+
+    public static String decodeBase64(String encodedString) {
+        Base64.Decoder decoder = Base64.getDecoder();
+        byte[] decodedBytes = decoder.decode(encodedString);
+        return new String(decodedBytes);
+    }
+
+    static OkHttpClient getClient(int timeout) {
+        return new OkHttpClient.Builder()
+                .writeTimeout(timeout, TimeUnit.SECONDS)
+                .readTimeout(timeout, TimeUnit.SECONDS)
+                .connectTimeout(timeout, TimeUnit.SECONDS)
+                .callTimeout(timeout, TimeUnit.SECONDS)
+                .build();
+    }
 
     public static String requestGET(String url) {
-        OkHttpClient client = new OkHttpClient.Builder()
-                .writeTimeout(60, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .connectTimeout(60, TimeUnit.SECONDS)
-                .callTimeout(60, TimeUnit.SECONDS)
-                .build();
+        OkHttpClient client = getClient(60);
         Request request = new Request.Builder()
                 .url(url)
                 .get()
+                .build();
+        try {
+            Response response = client.newCall(request).execute();
+            return response.body().string();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static byte[] requestGETtoBytes(String url) {
+        OkHttpClient client = getClient(60);
+        Request request = new Request.Builder()
+                .url(url)
+                .get()
+                .build();
+        try {
+            Response response = client.newCall(request).execute();
+            return response.body().bytes();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static String requestPUT(String url, RequestBody body) {
+        OkHttpClient client = getClient(60);
+        Request request = new Request.Builder()
+                .url(url)
+                .put(body)
                 .build();
         try {
             Response response = client.newCall(request).execute();

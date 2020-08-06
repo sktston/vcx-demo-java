@@ -8,19 +8,22 @@ import com.jayway.jsonpath.JsonPath;
 
 import org.apache.commons.cli.CommandLine;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Scanner;
 import java.util.logging.Logger;
 
 import utils.Common;
 import utils.VcxState;
 
-import static utils.Common.prettyJson;
+import static utils.Common.*;
 
 public class Alice {
     // get logger for demo - INFO configured
     static final Logger logger = Common.getDemoLogger();
+    static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
+    static final String tailsServerUrl = "http://13.124.169.12";
 
     public static void main(String[] args) throws Exception {
         // Library logger setup - ERROR|WARN|INFO|DEBUG|TRACE
@@ -140,6 +143,23 @@ public class Alice {
         for(String key : attrs.keySet()){
             String attr = JsonPath.parse((LinkedHashMap)JsonPath.read(credentials, "$.attrs." + key + ".[0]")).jsonString();
             credentials = JsonPath.parse(credentials).set("$.attrs." + key, JsonPath.parse("{\"credential\":"+ attr + "}").json()).jsonString();
+
+            // prepare tails file and add attribute
+            String revRegId = JsonPath.read(attr, "$.cred_info.rev_reg_id");
+            String tailsFileDir = tailsFileRoot + "/" + revRegId;
+            if (Files.notExists(Paths.get(tailsFileDir))) {
+                // get tails file from tails file server
+                byte[] fileContent = requestGETtoBytes(tailsServerUrl + "/" + revRegId);
+
+                // get file name by hashing
+                String tailsFileName = getHash(fileContent);
+
+                // write tails file into tailsFileDir
+                String tailsFilePath = tailsFileDir + "/" + tailsFileName;
+                Files.createDirectory(Paths.get(tailsFileDir));
+                Files.write(Paths.get(tailsFilePath), fileContent);
+            }
+            credentials = JsonPath.parse(credentials).put("$.attrs." + key, "tails_file", tailsFileDir).jsonString();
         }
 
         logger.info("#25 Generate the proof");
@@ -153,6 +173,10 @@ public class Alice {
         while (proofState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
+            if (proofState == VcxState.None.getValue()) {
+                logger.info("Incorrect proof is sent");
+                System.exit(0);
+            }
         }
         logger.info("Faber received the proof");
 
