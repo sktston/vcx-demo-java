@@ -41,7 +41,7 @@ public class Alice {
                 "  agency_url: 'http://13.125.5.122:8080'," + // skt node agency testnet
                 "  agency_did: 'VsKV7grR1BUE29mG2Fm2kX'," +
                 "  agency_verkey: 'Hezce2UWMZ3wUhVkh2LfKSs8nDzWwzs2Win7EzNN3YaR'," +
-                "  wallet_name: 'node_vcx_demo_alice_wallet_" + utime + "'," +
+                "  wallet_name: 'vcx_demo_alice_wallet_" + utime + "'," +
                 "  wallet_key: '123'," +
                 "  payment_method: 'null'," +
                 "  enterprise_seed: '000000000000000000000000000User1'" + // SEED of alice's DID that does not need to be registered in the ledger
@@ -140,7 +140,8 @@ public class Alice {
         String credentials = DisclosedProofApi.proofRetrieveCredentials(proofHandle).get();
 
         LinkedHashMap<String, Object> attrs = JsonPath.read(credentials, "$.attrs");
-        for(String key : attrs.keySet()){
+        for(String key : attrs.keySet()) {
+            // use first credential (just one credential in demo)
             String attr = JsonPath.parse((LinkedHashMap)JsonPath.read(credentials, "$.attrs." + key + ".[0]")).jsonString();
             credentials = JsonPath.parse(credentials).set("$.attrs." + key, JsonPath.parse("{\"credential\":"+ attr + "}").json()).jsonString();
 
@@ -174,11 +175,11 @@ public class Alice {
             Thread.sleep(2000);
             proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
             if (proofState == VcxState.None.getValue()) {
-                logger.info("Incorrect proof is sent");
+                logger.info("Faber denied the proof (possibly the credential has been revoked)");
                 System.exit(0);
             }
         }
-        logger.info("Faber received the proof");
+        logger.info("Faber verified the proof");
 
         System.exit(0);
     }

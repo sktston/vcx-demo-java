@@ -45,7 +45,7 @@ public class Faber {
                 "  agency_url: 'http://13.125.5.122:8080'," + // skt node agency testnet
                 "  agency_did: 'VsKV7grR1BUE29mG2Fm2kX'," +
                 "  agency_verkey: 'Hezce2UWMZ3wUhVkh2LfKSs8nDzWwzs2Win7EzNN3YaR'," +
-                "  wallet_name: 'node_vcx_demo_faber_wallet_" + utime + "'," +
+                "  wallet_name: 'vcx_demo_faber_wallet" + utime + "'," +
                 "  wallet_key: '123'," +
                 "  payment_method: 'null'," +
                 "  enterprise_seed: '00000000000000000000000Endorser1'" + // SEED of faber's DID already registered in the ledger
@@ -199,6 +199,12 @@ public class Faber {
         logger.info("#17 Issue credential to alice");
         IssuerApi.issuerSendCredential(credentialHandle, connectionHandle).get();
 
+
+        if (options.hasOption("revoke")) {
+            logger.info("#17-1 (Revoke enabled) Revoke the credential");
+            IssuerApi.issuerRevokeCredential(credentialHandle);
+        }
+
         logger.info("#18 Wait for alice to accept credential");
         credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
         while (credentialState != VcxState.Accepted.getValue()) {
@@ -230,15 +236,18 @@ public class Faber {
                 "  }" +
                 "]").jsonString();
 
+        long curUnixTime = System.currentTimeMillis() / 1000L;
+        String revocationInterval = "{\"to\": " + curUnixTime + "}";
+
         logger.info("#19 Create a Proof object\n" +
                 "proofAttributes: " + prettyJson(proofAttributes) + "\n" +
-                "proofPredicates: " + prettyJson(proofPredicates));
+                "proofPredicates: " + prettyJson(proofPredicates) + "\n" +
+                "revocationInterval: " + prettyJson(revocationInterval));
 
-        long unixTime = System.currentTimeMillis() / 1000L;
         int proofHandle = ProofApi.proofCreate("proof_uuid",
                 proofAttributes,
                 proofPredicates,
-                "{\"to\": " + unixTime + "}",
+                revocationInterval,
                 "proof_from_alice").get();
 
         logger.info("#20 Request proof of degree from alice");
@@ -266,7 +275,7 @@ public class Faber {
             logger.info("Requested proof:" + prettyJson(requestedProof));
             logger.info("Proof is verified");
         } else if (proofResult.getProof_state() == ProofState.Invalid.getValue()) {
-            logger.warning("Proof verification failed, credential has been revoked");
+            logger.warning("Proof verification failed. credential has been revoked");
         }
         else {
             logger.warning("Unexpected proof state" + proofResult.getProof_state());

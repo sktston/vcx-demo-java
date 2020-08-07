@@ -58,6 +58,12 @@ task faber_pg(type:JavaExec) {
     main = 'Faber'
     args(['--postgres'])
 }
+task faber_revoke(type:JavaExec) {
+    group 'application'
+    classpath sourceSets.main.runtimeClasspath
+    main = 'Faber'
+    args(['--revoke'])
+}
 task alice(type:JavaExec) {
     group 'application'
     classpath sourceSets.main.runtimeClasspath

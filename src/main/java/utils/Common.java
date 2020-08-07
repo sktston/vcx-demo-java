@@ -94,10 +94,12 @@ public class Common {
     public static CommandLine getCommandLine(String[] args) {
         Option help = new Option("h", "help", false, "Display this usage guide.");
         Option postgres = new Option("p", "postgres", false,"If specified, postgres wallet will be used.");
+        Option revoke = new Option("r", "revoke", false,"If specified, the issued credential will be revoked.");
 
         Options options = new Options();
         options.addOption(help);
         options.addOption(postgres);
+        options.addOption(revoke);
 
         CommandLineParser parser = new DefaultParser();
         try {
