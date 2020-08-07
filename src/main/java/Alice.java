@@ -179,7 +179,7 @@ public class Alice {
                 System.exit(0);
             }
         }
-        logger.info("Faber verified the proof");
+        logger.info("Faber received the proof");
 
         System.exit(0);
     }
