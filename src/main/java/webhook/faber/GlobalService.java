@@ -37,6 +37,9 @@ public class GlobalService {
     static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
     static final String tailsServerUrl = "http://13.124.169.12";
 
+    // check faber or faber_revoke
+    static String enableRevoke = System.getenv().getOrDefault("ENABLE_REVOKE", "false");
+
     @PostConstruct
     public void initialize() throws Exception {
         log.info("#0 Initialize");
@@ -241,6 +244,10 @@ public class GlobalService {
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/issue-credential/1.0/request-credential")) {
                     log.info("- Case(aries ,issue-credential/1.0/request-credential) -> sendCredential");
                     sendCredential(connectionHandle, payloadMessage);
+                    if (enableRevoke.equals("true")) {
+                        log.info("#17-1 (Revoke enabled) Revoke the credential");
+                        revokeCredential(payloadMessage);
+                    }
                 }
                 // STEP.10 - request proof
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/issue-credential/1.0/ack")) {
@@ -253,7 +260,7 @@ public class GlobalService {
                 break;
             case "presentation":
                 // STEP.12 - receive & verify proof
-                log.info("- Case(presentation)");
+                log.info("- Case(presentation) -> verifyProof");
                 verifyProof(connectionHandle, payloadMessage);
                 break;
             default:
@@ -340,6 +347,27 @@ public class GlobalService {
         if (credentialState == VcxState.RequestReceived.getValue()) {
             log.info("#17 Issue credential to alice");
             IssuerApi.issuerSendCredential(credentialHandle, connectionHandle).get();
+
+            serializedCredential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
+            log.config("updateRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
+            WalletApi.updateRecordWallet("credential", threadId, serializedCredential).get();
+        }
+        else {
+            log.severe("Unexpected state type");
+        }
+        IssuerApi.issuerCredentialRelease(credentialHandle);
+    }
+
+    void revokeCredential(String payloadMessage) throws Exception {
+        String threadId = JsonPath.read(payloadMessage,"$.~thread.thid");
+        String credentialRecord = WalletApi.getRecordWallet("credential", threadId, "").get();
+        String serializedCredential = JsonPath.read(credentialRecord,"$.value");
+
+        int credentialHandle = IssuerApi.issuerCredentialDeserialize(serializedCredential).get();
+        int credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
+
+        if (credentialState == VcxState.Accepted.getValue()) {
+            IssuerApi.issuerRevokeCredential(credentialHandle);
 
             serializedCredential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
             log.config("updateRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
