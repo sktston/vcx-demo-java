@@ -14,15 +14,19 @@ import utils.Common;
 import utils.NotificationsRequestDto;
 import utils.VcxState;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.logging.Logger;
 
-import static utils.Common.prettyJson;
+import static utils.Common.*;
 
 @RestController
 public class GlobalController {
     // get logger for demo - INFO configured
     static final Logger logger = Common.getDemoLogger();
+    static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
+    static final String tailsServerUrl = "http://13.124.169.12";
 
     @PostMapping("/notifications")
     public ResponseEntity notificationsHandler(@RequestBody(required = false) NotificationsRequestDto body) throws Exception {
@@ -55,7 +59,7 @@ public class GlobalController {
 
                     if (connectionState == VcxState.Accepted.getValue()) {
                         serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
-                        logger.info("updateRecordWallet (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
+                        logger.config("updateRecordWallet (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
                         WalletApi.updateRecordWallet("connection", pwDid, serializedConnection).get();
                     }
                     else {
@@ -87,7 +91,7 @@ public class GlobalController {
                     }
 
                     String serializedProof = DisclosedProofApi.proofSerialize(proofHandle).get();
-                    logger.info("updateRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
+                    logger.config("updateRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
                     WalletApi.updateRecordWallet("proof", threadId, serializedProof).get();
 
                     DisclosedProofApi.proofRelease(proofHandle);
@@ -118,7 +122,7 @@ public class GlobalController {
                     //Serialize the object
                     String serializedCredential = CredentialApi.credentialSerialize(credentialHandle).get();
                     String threadId = JsonPath.read(serializedCredential, "$.data.holder_sm.thread_id");
-                    logger.info("addRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
+                    logger.config("addRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
                     WalletApi.addRecordWallet("credential", threadId, serializedCredential, "").get();
 
                     CredentialApi.credentialRelease(credentialHandle);
@@ -150,7 +154,7 @@ public class GlobalController {
 
                     //Serialize the object
                     serializedCredential = CredentialApi.credentialSerialize(credentialHandle).get();
-                    logger.info("updateRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
+                    logger.config("updateRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
                     WalletApi.updateRecordWallet("credential", threadId, serializedCredential).get();
 
                     CredentialApi.credentialRelease(credentialHandle);
@@ -175,10 +179,29 @@ public class GlobalController {
                     logger.info("#24 Query for credentials in the wallet that satisfy the proof request");
                     String credentials = DisclosedProofApi.proofRetrieveCredentials(proofHandle).get();
 
+
                     LinkedHashMap<String, Object> attrs = JsonPath.read(credentials, "$.attrs");
-                    for(String key : attrs.keySet()){
+                    for(String key : attrs.keySet()) {
+                        // use first credential (just one credential in demo)
                         String attr = JsonPath.parse((LinkedHashMap)JsonPath.read(credentials, "$.attrs." + key + ".[0]")).jsonString();
                         credentials = JsonPath.parse(credentials).set("$.attrs." + key, JsonPath.parse("{\"credential\":"+ attr + "}").json()).jsonString();
+
+                        // prepare tails file and add attribute
+                        String revRegId = JsonPath.read(attr, "$.cred_info.rev_reg_id");
+                        String tailsFileDir = tailsFileRoot + "/" + revRegId;
+                        if (Files.notExists(Paths.get(tailsFileDir))) {
+                            // get tails file from tails file server
+                            byte[] fileContent = requestGETtoBytes(tailsServerUrl + "/" + revRegId);
+
+                            // get file name by hashing
+                            String tailsFileName = getHash(fileContent);
+
+                            // write tails file into tailsFileDir
+                            String tailsFilePath = tailsFileDir + "/" + tailsFileName;
+                            Files.createDirectory(Paths.get(tailsFileDir));
+                            Files.write(Paths.get(tailsFilePath), fileContent);
+                        }
+                        credentials = JsonPath.parse(credentials).put("$.attrs." + key, "tails_file", tailsFileDir).jsonString();
                     }
 
                     logger.info("#25 Generate the proof");
@@ -190,7 +213,7 @@ public class GlobalController {
                     //Serialize the object
                     String serializedProof = DisclosedProofApi.proofSerialize(proofHandle).get();
                     String threadId = JsonPath.read(serializedProof,"$.data.prover_sm.thread_id");
-                    logger.info("addRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
+                    logger.config("addRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
                     WalletApi.addRecordWallet("proof", threadId, serializedProof, "").get();
 
                     DisclosedProofApi.proofRelease(proofHandle);

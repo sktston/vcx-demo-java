@@ -199,7 +199,6 @@ public class Faber {
         logger.info("#17 Issue credential to alice");
         IssuerApi.issuerSendCredential(credentialHandle, connectionHandle).get();
 
-
         if (options.hasOption("revoke")) {
             logger.info("#17-1 (Revoke enabled) Revoke the credential");
             IssuerApi.issuerRevokeCredential(credentialHandle);
@@ -274,7 +273,8 @@ public class Faber {
             String requestedProof = JsonPath.parse((LinkedHashMap)JsonPath.read(decodedProof, "$.requested_proof")).jsonString();
             logger.info("Requested proof:" + prettyJson(requestedProof));
             logger.info("Proof is verified");
-        } else if (proofResult.getProof_state() == ProofState.Invalid.getValue()) {
+        }
+        else if (proofResult.getProof_state() == ProofState.Invalid.getValue()) {
             logger.warning("Proof verification failed. credential has been revoked");
         }
         else {

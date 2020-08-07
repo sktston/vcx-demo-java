@@ -18,6 +18,7 @@ import utils.VcxState;
 import java.util.LinkedHashMap;
 import java.util.logging.Logger;
 
+import static utils.Common.decodeBase64;
 import static utils.Common.prettyJson;
 
 @RestController
@@ -61,7 +62,7 @@ public class GlobalController {
                         String newPwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
 
                         serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
-                        logger.info("addRecordWallet (connection, " + newPwDid + ", " + prettyJson(serializedConnection) + ")");
+                        logger.config("addRecordWallet (connection, " + newPwDid + ", " + prettyJson(serializedConnection) + ")");
                         WalletApi.addRecordWallet("connection", newPwDid, serializedConnection, "").get();
                     }
                     else {
@@ -76,7 +77,7 @@ public class GlobalController {
 
                     if (connectionState == VcxState.Accepted.getValue()) {
                         serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
-                        logger.info("updateRecordWallet (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
+                        logger.config("updateRecordWallet (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
                         WalletApi.updateRecordWallet("connection", pwDid, serializedConnection).get();
                     }
                     else {
@@ -113,7 +114,7 @@ public class GlobalController {
 
                         String serializedCredential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
                         String threadId = JsonPath.read(serializedCredential,"$.data.issuer_sm.state.OfferSent.thread_id");
-                        logger.info("addRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
+                        logger.config("addRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
                         WalletApi.addRecordWallet("credential", threadId, serializedCredential, "").get();
 
                         IssuerApi.issuerCredentialRelease(credentialHandle);
@@ -143,7 +144,7 @@ public class GlobalController {
                         IssuerApi.issuerSendCredential(credentialHandle, connectionHandle).get();
 
                         serializedCredential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
-                        logger.info("updateRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
+                        logger.config("updateRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
                         WalletApi.updateRecordWallet("credential", threadId, serializedCredential).get();
                     }
                     else {
@@ -183,13 +184,17 @@ public class GlobalController {
                                 "  }" +
                                 "]").jsonString();
 
+                        long curUnixTime = System.currentTimeMillis() / 1000L;
+                        String revocationInterval = "{\"to\": " + curUnixTime + "}";
+
                         logger.info("#19 Create a Proof object\n" +
                                 "proofAttributes: " + prettyJson(proofAttributes) + "\n" +
-                                "proofPredicates: " + prettyJson(proofPredicates));
+                                "proofPredicates: " + prettyJson(proofPredicates) + "\n" +
+                                "revocationInterval: " + prettyJson(revocationInterval));
                         int proofHandle = ProofApi.proofCreate("proof_uuid",
                                 proofAttributes,
                                 proofPredicates,
-                                "{}",
+                                revocationInterval,
                                 "proof_from_alice").get();
 
                         logger.info("#20 Request proof of degree from alice");
@@ -197,7 +202,7 @@ public class GlobalController {
 
                         String serializedProof = ProofApi.proofSerialize(proofHandle).get();
                         threadId = JsonPath.read(serializedProof,"$.data.verifier_sm.state.PresentationRequestSent.presentation_request.@id");
-                        logger.info("addRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
+                        logger.config("addRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
                         WalletApi.addRecordWallet("proof", threadId, serializedProof, "").get();
 
                         ProofApi.proofRelease(proofHandle);
@@ -230,15 +235,28 @@ public class GlobalController {
 
                     logger.info("#28 Check if proof is valid");
                     if (proofResult.getProof_state() == ProofState.Validated.getValue()) {
+                        String encodedProof = JsonPath.read(proofResult.getResponse_data(), "$.presentations~attach.[0].data.base64");
+                        String decodedProof = decodeBase64(encodedProof);
+                        String requestedProof = JsonPath.parse((LinkedHashMap)JsonPath.read(decodedProof, "$.requested_proof")).jsonString();
+                        logger.info("Requested proof:" + prettyJson(requestedProof));
                         logger.info("Proof is verified");
                     }
-                    else {
-                        logger.info("Could not verify proof");
+                    else if (proofResult.getProof_state() == ProofState.Invalid.getValue()) {
+                        logger.warning("Proof verification failed. credential has been revoked");
                     }
+                    else {
+                        logger.warning("Unexpected proof state" + proofResult.getProof_state());
+                    }
+                }
+                else if (proofState == VcxState.None.getValue()) {
+                    logger.info("Incorrect proof is received");
+                }
+                else {
+                    logger.severe("Unexpected state type");
                 }
 
                 serializedProof = ProofApi.proofSerialize(proofHandle).get();
-                logger.info("updateRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
+                logger.config("updateRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
                 WalletApi.updateRecordWallet("proof", threadId, serializedProof).get();
 
                 ProofApi.proofRelease(proofHandle);

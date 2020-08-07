@@ -59,7 +59,7 @@ public class GlobalService {
         logger.info("#9 Initialize libvcx with new configuration\n" + prettyJson(vcxConfig));
         VcxApi.vcxInitWithConfig(vcxConfig).get();
 
-        logger.info("addRecordWallet (vcxConfig, defaultVcxConfig, " + prettyJson(vcxConfig) + ")");
+        logger.config("addRecordWallet (vcxConfig, defaultVcxConfig, " + prettyJson(vcxConfig) + ")");
         WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig, "").get();
     }
 
@@ -78,7 +78,7 @@ public class GlobalService {
 
         String connection = ConnectionApi.connectionSerialize(connectionHandle).get();
         String pwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
-        logger.info("addRecordWallet (connection, " + pwDid + ", " + prettyJson(connection) + ")");
+        logger.config("addRecordWallet (connection, " + pwDid + ", " + prettyJson(connection) + ")");
         WalletApi.addRecordWallet("connection", pwDid, connection, "").get();
         ConnectionApi.connectionRelease(connectionHandle);
     }
