@@ -26,7 +26,7 @@ import static utils.Common.*;
 
 public class Faber {
     // get logger for demo - INFO configured
-    static final Logger logger = Common.getDemoLogger();
+    static final Logger log = Common.getDemoLogger();
     static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
     static final String tailsServerUrl = "http://13.124.169.12";
 
@@ -37,7 +37,7 @@ public class Faber {
         CommandLine options = Common.getCommandLine(args);
         if (options == null) System.exit(0);
 
-        logger.info("#0 Initialize");
+        log.info("#0 Initialize");
         Common.loadNullPayPlugin();
 
         long utime = System.currentTimeMillis() / 1000;
@@ -53,7 +53,7 @@ public class Faber {
 
         // Communication method. aries.
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "4.0").jsonString();
-        logger.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
+        log.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
 
         if (options.hasOption("postgres")) {
             Common.loadPostgresPlugin();
@@ -61,12 +61,12 @@ public class Faber {
                     .put("$", "storage_config", "{\"url\":\"localhost:5432\"}")
                     .put("$", "storage_credentials", "{\"account\":\"postgres\",\"password\":\"mysecretpassword\"," +
                             "\"admin_account\":\"postgres\",\"admin_password\":\"mysecretpassword\"}").jsonString();
-            logger.info("Running with PostreSQL wallet enabled! Config = " + JsonPath.read(provisionConfig, "$.storage_config"));
+            log.info("Running with PostreSQL wallet enabled! Config = " + JsonPath.read(provisionConfig, "$.storage_config"));
         } else {
-            logger.info("Running with builtin wallet.");
+            log.info("Running with builtin wallet.");
         }
 
-        logger.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig));
+        log.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig));
         String vcxConfig = UtilsApi.vcxProvisionAgent(provisionConfig);
 
         vcxConfig = JsonPath.parse(vcxConfig).put("$", "institution_name", "faber")
@@ -74,7 +74,7 @@ public class Faber {
                 .put("$", "protocol_version", "2")
                 .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn").jsonString(); // file configured for skt testnet
                 //.put("$", "genesis_path", "http://54.180.86.51/genesis").jsonString(); // or url can be configured
-        logger.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig));
+        log.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig));
         VcxApi.vcxInitWithConfig(vcxConfig).get();
 
         // define schema with actually needed
@@ -84,14 +84,14 @@ public class Faber {
                 "  schema_version: '" + version + "'," +
                 "  attributes: ['name', 'last_name', 'date', 'degree', 'age']" +
                 "}").jsonString();
-        logger.info("#3 Create a new schema on the ledger: \n" + prettyJson(schemaData));
+        log.info("#3 Create a new schema on the ledger: \n" + prettyJson(schemaData));
         int schemaHandle = SchemaApi.schemaCreate("schema_uuid",
                 JsonPath.read(schemaData, "$.schema_name"),
                 JsonPath.read(schemaData, "$.schema_version"),
                 JsonPath.parse((List)JsonPath.read(schemaData, "$.attributes")).jsonString(),
                 0).get();
         String schemaId = SchemaApi.schemaGetSchemaId(schemaHandle).get();
-        logger.info("Created schema with id " + schemaId + " and handle " + schemaHandle);
+        log.info("Created schema with id " + schemaId + " and handle " + schemaHandle);
 
         // define credential definition with actually needed
         String credDefData = JsonPath.parse("{" +
@@ -103,7 +103,7 @@ public class Faber {
                 "    max_creds: 10" +
                 "  }" +
                 "}").jsonString();
-        logger.info("#4-1 Create a new credential definition object: \n" + prettyJson(credDefData));
+        log.info("#4-1 Create a new credential definition object: \n" + prettyJson(credDefData));
         CredentialDefPrepareForEndorserResult credDefObject = CredentialDefApi.credentialDefPrepareForEndorser("'cred_def_uuid'",
                 "cred_def_name",
                 JsonPath.read(credDefData, "$.schemaId"),
@@ -119,7 +119,7 @@ public class Faber {
         String tailsFileHash = JsonPath.read(revRegDefTrx, "$.operation.value.tailsHash");
         String revRegEntryTrx = credDefObject.getRevocRegEntryTransaction();
 
-        logger.info("#4-2 Publish credential definition and revocation registry on the ledger");
+        log.info("#4-2 Publish credential definition and revocation registry on the ledger");
         UtilsApi.vcxEndorseTransaction(credDefTrx).get();
         // we replace tails file location from local to tails server url
         revRegDefTrx = JsonPath.parse(revRegDefTrx).set("$.operation.value.tailsLocation", tailsServerUrl + "/" + revRegId).jsonString();
@@ -127,11 +127,11 @@ public class Faber {
         UtilsApi.vcxEndorseTransaction(revRegEntryTrx).get();
         int credentialDefState = CredentialDefApi.credentialDefUpdateState(credDefHandle).get();
         if (credentialDefState == 1)
-            logger.info("Published successfully");
+            log.info("Published successfully");
         else
-            logger.warning("Publishing is failed");
+            log.warning("Publishing is failed");
 
-        logger.info("#4-3 Upload tails file to tails filer server: " + tailsServerUrl + "/" + revRegId);
+        log.info("#4-3 Upload tails file to tails filer server: " + tailsServerUrl + "/" + revRegId);
         RequestBody body = new MultipartBody.Builder().setType(MultipartBody.FORM)
                 .addFormDataPart("genesis","genesis.txn",
                         RequestBody.create(new File(System.getProperty("user.dir") + "/genesis.txn"),
@@ -142,32 +142,32 @@ public class Faber {
                 .build();
         String response = requestPUT(tailsServerUrl + "/" + revRegId, body);
         if (response.equals(tailsFileHash))
-            logger.info("Uploaded successfully - tails file: " + tailsFileHash);
+            log.info("Uploaded successfully - tails file: " + tailsFileHash);
         else
-            logger.warning("Uploading is failed - tails file: " + tailsFileHash);
+            log.warning("Uploading is failed - tails file: " + tailsFileHash);
 
         String credDefId = CredentialDefApi.credentialDefGetCredentialDefId(credDefHandle).get();
-        logger.info("Created credential with id " + credDefId + " and handle " + credDefHandle);
+        log.info("Created credential with id " + credDefId + " and handle " + credDefHandle);
 
-        logger.info("#5 Create a connection to alice and print out the invite details");
+        log.info("#5 Create a connection to alice and print out the invite details");
         int connectionHandle = ConnectionApi.vcxConnectionCreate("alice").get();
         ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
         String details = ConnectionApi.connectionInviteDetails(connectionHandle, 0).get();
-        logger.info("\n**invite details**");
-        logger.info("**You'll be queried to paste this data to alice side of the demo. This is invitation to connect.**");
-        logger.info("**It's assumed this is obtained by Alice from Faber by some existing secure channel.**");
-        logger.info("**Could be on website via HTTPS, QR code scanned at Faber institution, ...**");
-        logger.info("\n******************\n");
-        logger.info(details);
-        logger.info("\n******************\n");
+        log.info("\n**invite details**");
+        log.info("**You'll be queried to paste this data to alice side of the demo. This is invitation to connect.**");
+        log.info("**It's assumed this is obtained by Alice from Faber by some existing secure channel.**");
+        log.info("**Could be on website via HTTPS, QR code scanned at Faber institution, ...**");
+        log.info("\n******************\n");
+        log.info(details);
+        log.info("\n******************\n");
 
-        logger.info("#6 Polling agency and waiting for alice to accept the invitation. (start alice now)");
+        log.info("#6 Polling agency and waiting for alice to accept the invitation. (start alice now)");
         int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         while (connectionState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         }
-        logger.info("Connection to alice was Accepted!");
+        log.info("Connection to alice was Accepted!");
 
         String schemaAttrs = JsonPath.parse("{" +
                 "  name: 'alice'," +
@@ -177,7 +177,7 @@ public class Faber {
                 "  age: '25'" +
                 "}").jsonString();
 
-        logger.info("#12 Create an IssuerCredential object using the schema and credential definition\n"
+        log.info("#12 Create an IssuerCredential object using the schema and credential definition\n"
                 + prettyJson(schemaAttrs));
         int credentialHandle = IssuerApi.issuerCreateCredential("alice_degree",
                 credDefHandle,
@@ -186,25 +186,25 @@ public class Faber {
                 "cred",
                 0).get();
 
-        logger.info("#13 Issue credential offer to alice");
+        log.info("#13 Issue credential offer to alice");
         IssuerApi.issuerSendCredentialOffer(credentialHandle, connectionHandle).get();
 
-        logger.info("#14 Poll agency and wait for alice to send a credential request");
+        log.info("#14 Poll agency and wait for alice to send a credential request");
         int credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
         while (credentialState != VcxState.RequestReceived.getValue()) {
             Thread.sleep(2000);
             credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
         }
 
-        logger.info("#17 Issue credential to alice");
+        log.info("#17 Issue credential to alice");
         IssuerApi.issuerSendCredential(credentialHandle, connectionHandle).get();
 
         if (options.hasOption("revoke")) {
-            logger.info("#17-1 (Revoke enabled) Revoke the credential");
+            log.info("#17-1 (Revoke enabled) Revoke the credential");
             IssuerApi.issuerRevokeCredential(credentialHandle);
         }
 
-        logger.info("#18 Wait for alice to accept credential");
+        log.info("#18 Wait for alice to accept credential");
         credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
         while (credentialState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
@@ -238,7 +238,7 @@ public class Faber {
         long curUnixTime = System.currentTimeMillis() / 1000L;
         String revocationInterval = "{\"to\": " + curUnixTime + "}";
 
-        logger.info("#19 Create a Proof object\n" +
+        log.info("#19 Create a Proof object\n" +
                 "proofAttributes: " + prettyJson(proofAttributes) + "\n" +
                 "proofPredicates: " + prettyJson(proofPredicates) + "\n" +
                 "revocationInterval: " + prettyJson(revocationInterval));
@@ -249,36 +249,36 @@ public class Faber {
                 revocationInterval,
                 "proof_from_alice").get();
 
-        logger.info("#20 Request proof of degree from alice");
+        log.info("#20 Request proof of degree from alice");
         ProofApi.proofSendRequest(proofHandle, connectionHandle).get();
 
-        logger.info("#21 Poll agency and wait for alice to provide proof");
+        log.info("#21 Poll agency and wait for alice to provide proof");
         int proofState = ProofApi.proofUpdateState(proofHandle).get();
         while (proofState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             proofState = ProofApi.proofUpdateState(proofHandle).get();
             if (proofState == VcxState.None.getValue()) {
-                logger.info("Incorrect proof is received");
+                log.info("Incorrect proof is received");
                 System.exit(0);
             }
         }
 
-        logger.info("#27 Process the proof provided by alice");
+        log.info("#27 Process the proof provided by alice");
         GetProofResult proofResult = ProofApi.getProof(proofHandle, connectionHandle).get();
 
-        logger.info("#28 Check if proof is valid");
+        log.info("#28 Check if proof is valid");
         if (proofResult.getProof_state() == ProofState.Validated.getValue()) {
             String encodedProof = JsonPath.read(proofResult.getResponse_data(), "$.presentations~attach.[0].data.base64");
             String decodedProof = decodeBase64(encodedProof);
             String requestedProof = JsonPath.parse((LinkedHashMap)JsonPath.read(decodedProof, "$.requested_proof")).jsonString();
-            logger.info("Requested proof:" + prettyJson(requestedProof));
-            logger.info("Proof is verified");
+            log.info("Requested proof:" + prettyJson(requestedProof));
+            log.info("Proof is verified");
         }
         else if (proofResult.getProof_state() == ProofState.Invalid.getValue()) {
-            logger.warning("Proof verification failed. credential has been revoked");
+            log.warning("Proof verification failed. credential has been revoked");
         }
         else {
-            logger.warning("Unexpected proof state" + proofResult.getProof_state());
+            log.warning("Unexpected proof state" + proofResult.getProof_state());
         }
 
         System.exit(0);

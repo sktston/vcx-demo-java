@@ -21,7 +21,7 @@ import static utils.Common.*;
 
 public class Alice {
     // get logger for demo - INFO configured
-    static final Logger logger = Common.getDemoLogger();
+    static final Logger log = Common.getDemoLogger();
     static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
     static final String tailsServerUrl = "http://13.124.169.12";
 
@@ -32,7 +32,7 @@ public class Alice {
         CommandLine options = Common.getCommandLine(args);
         if (options == null) System.exit(0);
 
-        logger.info("#0 Initialize");
+        log.info("#0 Initialize");
         Common.loadNullPayPlugin();
 
         // static configuration
@@ -49,7 +49,7 @@ public class Alice {
 
         // Communication method. aries.
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "4.0").jsonString();
-        logger.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
+        log.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
 
         if (options.hasOption("postgres")) {
             Common.loadPostgresPlugin();
@@ -57,12 +57,12 @@ public class Alice {
                     .put("$", "storage_config", "{\"url\":\"localhost:5432\"}")
                     .put("$", "storage_credentials", "{\"account\":\"postgres\",\"password\":\"mysecretpassword\"," +
                             "\"admin_account\":\"postgres\",\"admin_password\":\"mysecretpassword\"}").jsonString();
-            logger.info("Running with PostreSQL wallet enabled! Config = " + JsonPath.read(provisionConfig, "$.storage_config"));
+            log.info("Running with PostreSQL wallet enabled! Config = " + JsonPath.read(provisionConfig, "$.storage_config"));
         } else {
-            logger.info("Running with builtin wallet.");
+            log.info("Running with builtin wallet.");
         }
 
-        logger.info("#8 Provision an agent and wallet, get back configuration details: \n" + prettyJson(provisionConfig));
+        log.info("#8 Provision an agent and wallet, get back configuration details: \n" + prettyJson(provisionConfig));
         String vcxConfig = UtilsApi.vcxProvisionAgent(provisionConfig);
 
         vcxConfig = JsonPath.parse(vcxConfig).put("$", "institution_name", "alice")
@@ -70,14 +70,14 @@ public class Alice {
                 .put("$", "protocol_version", "2")
                 .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn").jsonString(); // file configured for skt testnet
                 //.put("$", "genesis_path", "http://54.180.86.51/genesis").jsonString(); // or url can be configured
-        logger.info("#9 Initialize libvcx with new configuration\n" + prettyJson(vcxConfig));
+        log.info("#9 Initialize libvcx with new configuration\n" + prettyJson(vcxConfig));
         VcxApi.vcxInitWithConfig(vcxConfig).get();
 
-        logger.info("Input faber invitation details\nEnter your invite details:");
+        log.info("Input faber invitation details\nEnter your invite details:");
         Scanner sc = new Scanner(System.in);
         String details = sc.nextLine();
 
-        logger.info("#10 Convert to valid json and string and create a connection to faber");
+        log.info("#10 Convert to valid json and string and create a connection to faber");
         int connectionHandle = ConnectionApi.vcxCreateConnectionWithInvite("faber", details).get();
         ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
         int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
@@ -86,15 +86,15 @@ public class Alice {
             connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         }
 
-        logger.info("#11 Wait for faber to issue a credential offer");
+        log.info("#11 Wait for faber to issue a credential offer");
         String offers = CredentialApi.credentialGetOffers(connectionHandle).get();
         while (JsonPath.read(offers, "$.length()").equals(0)) {
             Thread.sleep(2000);
             offers = CredentialApi.credentialGetOffers(connectionHandle).get();
         }
-        logger.info("Alice found " + JsonPath.read(offers, "$.length()") + " credential offers.");
+        log.info("Alice found " + JsonPath.read(offers, "$.length()") + " credential offers.");
         String credentialOffer = JsonPath.parse((LinkedHashMap)JsonPath.read(offers, "$.[0]")).jsonString();
-        logger.info("credential offer:\n" + prettyJson(credentialOffer));
+        log.info("credential offer:\n" + prettyJson(credentialOffer));
 
         // Update agency message status manually (xxxUpdateState automatically update message status, but not here)
         String pwDidAtOffer = ConnectionApi.connectionGetPwDid(connectionHandle).get();
@@ -106,25 +106,25 @@ public class Alice {
         // Create a credential object from the credential offer
         int credentialHandle = CredentialApi.credentialCreateWithOffer("credential", credentialOffer).get();
 
-        logger.info("#15 After receiving credential offer, send credential request");
+        log.info("#15 After receiving credential offer, send credential request");
         CredentialApi.credentialSendRequest(credentialHandle, connectionHandle, 0).get();
 
-        logger.info("#16 Poll agency and accept credential from faber");
+        log.info("#16 Poll agency and accept credential from faber");
         int credentialState = CredentialApi.credentialUpdateState(credentialHandle).get();
         while (credentialState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             credentialState = CredentialApi.credentialUpdateState(credentialHandle).get();
         }
 
-        logger.info("#22 Poll agency for a proof request");
+        log.info("#22 Poll agency for a proof request");
         String requests = DisclosedProofApi.proofGetRequests(connectionHandle).get();
         while (JsonPath.read(requests, "$.length()").equals(0)) {
             Thread.sleep(2000);
             requests = DisclosedProofApi.proofGetRequests(connectionHandle).get();
         }
-        logger.info("Alice found " + JsonPath.read(requests, "$.length()") + " proof requests.");
+        log.info("Alice found " + JsonPath.read(requests, "$.length()") + " proof requests.");
         String proofRequest = JsonPath.parse((LinkedHashMap)JsonPath.read(requests, "$.[0]")).jsonString();
-        logger.info("proof request:\n" + prettyJson(proofRequest));
+        log.info("proof request:\n" + prettyJson(proofRequest));
 
         // Update agency message status manually (xxxUpdateState automatically update message status, but not here)
         String pwDidAtRequest = ConnectionApi.connectionGetPwDid(connectionHandle).get();
@@ -133,10 +133,10 @@ public class Alice {
         UtilsApi.vcxUpdateMessages("MS-106",
                 "[{\"pairwiseDID\":\"" + pwDidAtRequest + "\",\"uids\":[\"" + uidAtRequest + "\"]}]");
 
-        logger.info("#23 Create a Disclosed proof object from proof request");
+        log.info("#23 Create a Disclosed proof object from proof request");
         int proofHandle = DisclosedProofApi.proofCreateWithRequest("proof", proofRequest).get();
 
-        logger.info("#24 Query for credentials in the wallet that satisfy the proof request");
+        log.info("#24 Query for credentials in the wallet that satisfy the proof request");
         String credentials = DisclosedProofApi.proofRetrieveCredentials(proofHandle).get();
 
         LinkedHashMap<String, Object> attrs = JsonPath.read(credentials, "$.attrs");
@@ -163,23 +163,23 @@ public class Alice {
             credentials = JsonPath.parse(credentials).put("$.attrs." + key, "tails_file", tailsFileDir).jsonString();
         }
 
-        logger.info("#25 Generate the proof");
+        log.info("#25 Generate the proof");
         DisclosedProofApi.proofGenerate(proofHandle, credentials, "{}").get();
 
-        logger.info("#26 Send the proof to faber");
+        log.info("#26 Send the proof to faber");
         DisclosedProofApi.proofSend(proofHandle, connectionHandle).get();
 
-        logger.info("#27 Wait for Faber to receive the proof");
+        log.info("#27 Wait for Faber to receive the proof");
         int proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
         while (proofState != VcxState.Accepted.getValue()) {
             Thread.sleep(2000);
             proofState = DisclosedProofApi.proofUpdateState(proofHandle).get();
             if (proofState == VcxState.None.getValue()) {
-                logger.info("Faber denied the proof (possibly the credential has been revoked)");
+                log.info("Faber denied the proof (possibly the credential has been revoked)");
                 System.exit(0);
             }
         }
-        logger.info("Faber received the proof");
+        log.info("Faber received the proof");
 
         System.exit(0);
     }

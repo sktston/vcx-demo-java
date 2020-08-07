@@ -31,7 +31,7 @@ import static utils.Common.*;
 @Service
 public class GlobalService {
     // get logger for demo - INFO configured
-    static final Logger logger = Common.getDemoLogger();
+    static final Logger log = Common.getDemoLogger();
 
     static final String webhookUrl = "http://localhost:7201/notifications";
     static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
@@ -39,7 +39,7 @@ public class GlobalService {
 
     @PostConstruct
     public void initialize() throws Exception {
-        logger.info("#0 Initialize");
+        log.info("#0 Initialize");
         Common.loadNullPayPlugin();
 
         long utime = System.currentTimeMillis() / 1000;
@@ -55,30 +55,30 @@ public class GlobalService {
 
         // Communication method. aries.
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "4.0").jsonString();
-        logger.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
+        log.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
 
         // add webhook url to config
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "webhook_url", webhookUrl).jsonString();
-        logger.info("Running with webhook notifications enabled! Webhook url = " + webhookUrl);
+        log.info("Running with webhook notifications enabled! Webhook url = " + webhookUrl);
 
-        logger.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig));
+        log.info("#1 Config used to provision agent in agency: \n" + prettyJson(provisionConfig));
         String vcxConfig = UtilsApi.vcxProvisionAgent(provisionConfig);
 
         vcxConfig = JsonPath.parse(vcxConfig).put("$", "institution_name", "faber")
                 .put("$", "institution_logo_url", "http://robohash.org/234")
                 .put("$", "protocol_version", "2")
                 .put("$", "genesis_path", System.getProperty("user.dir") + "/genesis.txn").jsonString();
-        logger.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig));
+        log.info("#2 Using following agent provision to initialize VCX\n" + prettyJson(vcxConfig));
         VcxApi.vcxInitWithConfig(vcxConfig).get();
 
-        logger.config("addRecordWallet (vcxConfig, defaultVcxConfig, " + prettyJson(vcxConfig) + ")");
+        log.config("addRecordWallet (vcxConfig, defaultVcxConfig, " + prettyJson(vcxConfig) + ")");
         WalletApi.addRecordWallet("vcxConfig", "defaultVcxConfig", vcxConfig, "").get();
 
         createSchema();
         createCredentialDefinition();
         createInviation();
 
-        logger.info("Setting of schema and credential definition is done. Run alice now.");
+        log.info("Setting of schema and credential definition is done. Run alice now.");
     }
 
     public void createSchema() throws Exception {
@@ -89,18 +89,18 @@ public class GlobalService {
                 "  schema_version: '" + version + "'," +
                 "  attributes: ['name', 'last_name', 'date', 'degree', 'age']" +
                 "}").jsonString();
-        logger.info("#3 Create a new schema on the ledger: \n" + prettyJson(schemaData));
+        log.info("#3 Create a new schema on the ledger: \n" + prettyJson(schemaData));
         int schemaHandle = SchemaApi.schemaCreate("schema_uuid",
                 JsonPath.read(schemaData, "$.schema_name"),
                 JsonPath.read(schemaData, "$.schema_version"),
                 JsonPath.parse((List)JsonPath.read(schemaData, "$.attributes")).jsonString(),
                 0).get();
         String schemaId = SchemaApi.schemaGetSchemaId(schemaHandle).get();
-        logger.info("Created schema with id " + schemaId + " and handle " + schemaHandle);
+        log.info("Created schema with id " + schemaId + " and handle " + schemaHandle);
 
         String schema = SchemaApi.schemaSerialize(schemaHandle).get();
 
-        logger.config("addRecordWallet - (schema, defaultSchema, " + prettyJson(schema) + ")");
+        log.config("addRecordWallet - (schema, defaultSchema, " + prettyJson(schema) + ")");
         WalletApi.addRecordWallet("schema", "defaultSchema", schema, "").get();
         SchemaApi.schemaRelease(schemaHandle);
     }
@@ -125,7 +125,7 @@ public class GlobalService {
                 "    max_creds: 10" +
                 "  }" +
                 "}").jsonString();
-        logger.info("#4-1 Create a new credential definition object: \n" + prettyJson(credDefData));
+        log.info("#4-1 Create a new credential definition object: \n" + prettyJson(credDefData));
         CredentialDefPrepareForEndorserResult credDefObject = CredentialDefApi.credentialDefPrepareForEndorser("'cred_def_uuid'",
                 "cred_def_name",
                 JsonPath.read(credDefData, "$.schemaId"),
@@ -141,7 +141,7 @@ public class GlobalService {
         String tailsFileHash = JsonPath.read(revRegDefTrx, "$.operation.value.tailsHash");
         String revRegEntryTrx = credDefObject.getRevocRegEntryTransaction();
 
-        logger.info("#4-2 Publish credential definition and revocation registry on the ledger");
+        log.info("#4-2 Publish credential definition and revocation registry on the ledger");
         UtilsApi.vcxEndorseTransaction(credDefTrx).get();
         // we replace tails file location from local to tails server url
         revRegDefTrx = JsonPath.parse(revRegDefTrx).set("$.operation.value.tailsLocation", tailsServerUrl + "/" + revRegId).jsonString();
@@ -149,11 +149,11 @@ public class GlobalService {
         UtilsApi.vcxEndorseTransaction(revRegEntryTrx).get();
         int credentialDefState = CredentialDefApi.credentialDefUpdateState(credDefHandle).get();
         if (credentialDefState == 1)
-            logger.info("Published successfully");
+            log.info("Published successfully");
         else
-            logger.warning("Publishing is failed");
+            log.warning("Publishing is failed");
 
-        logger.info("#4-3 Upload tails file to tails filer server: " + tailsServerUrl + "/" + revRegId);
+        log.info("#4-3 Upload tails file to tails filer server: " + tailsServerUrl + "/" + revRegId);
         RequestBody body = new MultipartBody.Builder().setType(MultipartBody.FORM)
                 .addFormDataPart("genesis","genesis.txn",
                         RequestBody.create(new File(System.getProperty("user.dir") + "/genesis.txn"),
@@ -164,53 +164,53 @@ public class GlobalService {
                 .build();
         String response = requestPUT(tailsServerUrl + "/" + revRegId, body);
         if (response.equals(tailsFileHash))
-            logger.info("Uploaded successfully - tails file: " + tailsFileHash);
+            log.info("Uploaded successfully - tails file: " + tailsFileHash);
         else
-            logger.warning("Uploading is failed - tails file: " + tailsFileHash);
+            log.warning("Uploading is failed - tails file: " + tailsFileHash);
 
         String credDefId = CredentialDefApi.credentialDefGetCredentialDefId(credDefHandle).get();
-        logger.info("Created credential with id " + credDefId + " and handle " + credDefHandle);
+        log.info("Created credential with id " + credDefId + " and handle " + credDefHandle);
 
         String credDef = CredentialDefApi.credentialDefSerialize(credDefHandle).get();
 
-        logger.config("addRecordWallet - (credentialDef, defaultCredentialDef, " + prettyJson(credDef) + ")");
+        log.config("addRecordWallet - (credentialDef, defaultCredentialDef, " + prettyJson(credDef) + ")");
         WalletApi.addRecordWallet("credentialDef", "defaultCredentialDef", credDef, "").get();
         CredentialDefApi.credentialDefRelease(credDefHandle);
     }
 
     public void createInviation() throws Exception {
         //STEP.1 - create connection F & send invitation
-        logger.info("#5 Create a connection to alice and return the invite details");
+        log.info("#5 Create a connection to alice and return the invite details");
         int connectionHandle = ConnectionApi.vcxConnectionCreate("alice").get();
         ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
         String details = ConnectionApi.connectionInviteDetails(connectionHandle, 0).get();
-        logger.info("**invite details**");
-        logger.info(details);
+        log.info("**invite details**");
+        log.info(details);
 
-        logger.config("addRecordWallet - (invitation, defaultInvitation, " + prettyJson(details) + ")");
+        log.config("addRecordWallet - (invitation, defaultInvitation, " + prettyJson(details) + ")");
         WalletApi.addRecordWallet("invitation", "defaultInvitation", details, "").get();
 
         String serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
         String pwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
-        logger.config("addRecordWallet - (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
+        log.config("addRecordWallet - (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
         WalletApi.addRecordWallet("connection", pwDid, serializedConnection, "").get();
         ConnectionApi.connectionRelease(connectionHandle);
     }
 
     public String getInvitation() throws Exception {
-        logger.info("getInvitation >>>");
+        log.info("getInvitation >>>");
         String invitationRecord = WalletApi.getRecordWallet("invitation", "defaultInvitation", "").get();
         String invitation = JsonPath.read(invitationRecord,"$.value");
-        logger.info("getInvitation <<< invitation:" + invitation);
+        log.info("getInvitation <<< invitation:" + invitation);
         return invitation;
     }
 
     public void handleMessage(NotificationsRequestDto body) throws Exception {
-        logger.info("handleMessage >>> body: " + body.toString());
+        log.info("handleMessage >>> body: " + body.toString());
 
         // Get the message from mediator using notification information
         String messages = UtilsApi.vcxGetMessages(body.getMsgStatusCode(), body.getMsgUid(), body.getPwDid()).get();
-        logger.info( "Messages: " +  messages);
+        log.info( "Messages: " +  messages);
         String message = JsonPath.parse((LinkedHashMap)JsonPath.read(messages,"$.[0].msgs[0]")).jsonString();
         String decryptedPayload = JsonPath.read(message, "$.decryptedPayload");
         String payloadMessage = JsonPath.read(decryptedPayload,"$.@msg");
@@ -226,12 +226,12 @@ public class GlobalService {
                 String innerType = JsonPath.read(payloadMessage,"$.@type");
                 // STEP.3 - update connection from F to F2A
                 if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/request")) {
-                    logger.info("- Case(aries, connections/1.0/request) -> acceptConnectionRequest");
+                    log.info("- Case(aries, connections/1.0/request) -> acceptConnectionRequest");
                     acceptConnectionRequest(connectionHandle);
                 }
                 // STEP.5 - receive connection created ACK
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/notification/1.0/ack")){
-                    logger.info("- Case(aries, notification/1.0/ack) -> receiveConnectionAck & sendCredentialOffer");
+                    log.info("- Case(aries, notification/1.0/ack) -> receiveConnectionAck & sendCredentialOffer");
                     receiveConnectionAck(connectionHandle, pwDid);
 
                     // STEP.6 - send credential offer
@@ -239,25 +239,25 @@ public class GlobalService {
                 }
                 // STEP.8 - send credential
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/issue-credential/1.0/request-credential")) {
-                    logger.info("- Case(aries ,issue-credential/1.0/request-credential) -> sendCredential");
+                    log.info("- Case(aries ,issue-credential/1.0/request-credential) -> sendCredential");
                     sendCredential(connectionHandle, payloadMessage);
                 }
                 // STEP.10 - request proof
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/issue-credential/1.0/ack")) {
-                    logger.info("- Case(aries ,issue-credential/1.0/ac) -> sendProofRequest");
+                    log.info("- Case(aries ,issue-credential/1.0/ac) -> sendProofRequest");
                     sendProofRequest(connectionHandle);
                 }
                 else {
-                    logger.severe("Unknown innerType message in aries type");
+                    log.severe("Unknown innerType message in aries type");
                 }
                 break;
             case "presentation":
                 // STEP.12 - receive & verify proof
-                logger.info("- Case(presentation)");
+                log.info("- Case(presentation)");
                 verifyProof(connectionHandle, payloadMessage);
                 break;
             default:
-                logger.severe("Unknown type message");
+                log.severe("Unknown type message");
 
         }
         ConnectionApi.connectionRelease(connectionHandle);
@@ -270,11 +270,11 @@ public class GlobalService {
             String newPwDid = ConnectionApi.connectionGetPwDid(connectionHandle).get();
 
             String serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
-            logger.config("addRecordWallet (connection, " + newPwDid + ", " + prettyJson(serializedConnection) + ")");
+            log.config("addRecordWallet (connection, " + newPwDid + ", " + prettyJson(serializedConnection) + ")");
             WalletApi.addRecordWallet("connection", newPwDid, serializedConnection, "").get();
         }
         else {
-            logger.severe("Unexpected state type");
+            log.severe("Unexpected state type");
         }
     }
 
@@ -282,11 +282,11 @@ public class GlobalService {
         int connectionState = ConnectionApi.vcxConnectionUpdateState(connectionHandle).get();
         if (connectionState == VcxState.Accepted.getValue()) {
             String serializedConnection = ConnectionApi.connectionSerialize(connectionHandle).get();
-            logger.config("updateRecordWallet (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
+            log.config("updateRecordWallet (connection, " + pwDid + ", " + prettyJson(serializedConnection) + ")");
             WalletApi.updateRecordWallet("connection", pwDid, serializedConnection).get();
         }
         else {
-            logger.severe("Unexpected state type");
+            log.severe("Unexpected state type");
         }
     }
 
@@ -299,7 +299,7 @@ public class GlobalService {
                 "  age: '25'" +
                 "}").jsonString();
 
-        logger.info("#12 Create an IssuerCredential object using the schema and credential definition\n"
+        log.info("#12 Create an IssuerCredential object using the schema and credential definition\n"
                 + prettyJson(schemaAttrs));
 
         String credDefRecord = WalletApi.getRecordWallet("credentialDef", "defaultCredentialDef", "").get();
@@ -312,12 +312,12 @@ public class GlobalService {
                 schemaAttrs,
                 "cred",
                 0).get();
-        logger.info("#13 Issue credential offer to alice");
+        log.info("#13 Issue credential offer to alice");
         IssuerApi.issuerSendCredentialOffer(credentialHandle, connectionHandle).get();
 
         String serializedCredential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
         String threadId = JsonPath.read(serializedCredential,"$.data.issuer_sm.state.OfferSent.thread_id");
-        logger.config("addRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
+        log.config("addRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
         WalletApi.addRecordWallet("credential", threadId, serializedCredential, "").get();
 
         IssuerApi.issuerCredentialRelease(credentialHandle);
@@ -338,15 +338,15 @@ public class GlobalService {
         int credentialState = IssuerApi.issuerCredentialUpdateState(credentialHandle).get();
 
         if (credentialState == VcxState.RequestReceived.getValue()) {
-            logger.info("#17 Issue credential to alice");
+            log.info("#17 Issue credential to alice");
             IssuerApi.issuerSendCredential(credentialHandle, connectionHandle).get();
 
             serializedCredential = IssuerApi.issuerCredentialSerialize(credentialHandle).get();
-            logger.config("updateRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
+            log.config("updateRecordWallet (credential, " + threadId + ", " + prettyJson(serializedCredential) + ")");
             WalletApi.updateRecordWallet("credential", threadId, serializedCredential).get();
         }
         else {
-            logger.severe("Unexpected state type");
+            log.severe("Unexpected state type");
         }
         IssuerApi.issuerCredentialRelease(credentialHandle);
     }
@@ -382,7 +382,7 @@ public class GlobalService {
         long curUnixTime = System.currentTimeMillis() / 1000L;
         String revocationInterval = "{\"to\": " + curUnixTime + "}";
 
-        logger.info("#19 Create a Proof object\n" +
+        log.info("#19 Create a Proof object\n" +
                 "proofAttributes: " + prettyJson(proofAttributes) + "\n" +
                 "proofPredicates: " + prettyJson(proofPredicates) + "\n" +
                 "revocationInterval: " + prettyJson(revocationInterval));
@@ -392,12 +392,12 @@ public class GlobalService {
                 revocationInterval,
                 "proof_from_alice").get();
 
-        logger.info("#20 Request proof of degree from alice");
+        log.info("#20 Request proof of degree from alice");
         ProofApi.proofSendRequest(proofHandle, connectionHandle).get();
 
         String serializedProof = ProofApi.proofSerialize(proofHandle).get();
         String threadId = JsonPath.read(serializedProof,"$.data.verifier_sm.state.PresentationRequestSent.presentation_request.@id");
-        logger.config("addRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
+        log.config("addRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
         WalletApi.addRecordWallet("proof", threadId, serializedProof, "").get();
 
         ProofApi.proofRelease(proofHandle);
@@ -417,33 +417,33 @@ public class GlobalService {
         int proofState = ProofApi.proofUpdateState(proofHandle).get();
 
         if (proofState == VcxState.Accepted.getValue()) {
-            logger.info("#27 Process the proof provided by alice");
+            log.info("#27 Process the proof provided by alice");
             GetProofResult proofResult = ProofApi.getProof(proofHandle, connectionHandle).get();
 
-            logger.info("#28 Check if proof is valid");
+            log.info("#28 Check if proof is valid");
             if (proofResult.getProof_state() == ProofState.Validated.getValue()) {
                 String encodedProof = JsonPath.read(proofResult.getResponse_data(), "$.presentations~attach.[0].data.base64");
                 String decodedProof = decodeBase64(encodedProof);
                 String requestedProof = JsonPath.parse((LinkedHashMap)JsonPath.read(decodedProof, "$.requested_proof")).jsonString();
-                logger.info("Requested proof:" + prettyJson(requestedProof));
-                logger.info("Proof is verified");
+                log.info("Requested proof:" + prettyJson(requestedProof));
+                log.info("Proof is verified");
             }
             else if (proofResult.getProof_state() == ProofState.Invalid.getValue()) {
-                logger.warning("Proof verification failed. credential has been revoked");
+                log.warning("Proof verification failed. credential has been revoked");
             }
             else {
-                logger.warning("Unexpected proof state" + proofResult.getProof_state());
+                log.warning("Unexpected proof state" + proofResult.getProof_state());
             }
         }
         else if (proofState == VcxState.None.getValue()) {
-            logger.info("Incorrect proof is received");
+            log.info("Incorrect proof is received");
         }
         else {
-            logger.severe("Unexpected state type");
+            log.severe("Unexpected state type");
         }
 
         serializedProof = ProofApi.proofSerialize(proofHandle).get();
-        logger.config("updateRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
+        log.config("updateRecordWallet (proof, " + threadId + ", " + prettyJson(serializedProof) + ")");
         WalletApi.updateRecordWallet("proof", threadId, serializedProof).get();
 
         ProofApi.proofRelease(proofHandle);
