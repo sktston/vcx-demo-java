@@ -78,13 +78,24 @@ described below.
 
 | Phase | Faber | Alice |
 |---|---|---|
-| connection | STEP.1 - create connection F & send invitation | STEP.2 - receive invitation & create connection A2F |
-|  | STEP.3 - update connection from F to F2A | STEP.4 - connection created |
-|  | STEP.5 - receive connection created ACK |  |
-| credential | STEP.6 - send credential offer | STEP.7 - accept credential offer & request credential |
+| connection | STEP.1 - create invitation(connection) & send invitation | STEP.2 - receive invitation & request connection |
+|  | STEP.3 - accept connection request | STEP.4 - connection created |
+|  | STEP.5 - receive connection ACK |  |
+| credential | STEP.6 - send credential offer | STEP.7 - check credential offer & request credential |
 |  | STEP.8 - send credential | STEP.9 - accept credential |
-| proof | STEP.10 - request proof | STEP.11 - send proof |
-|  | STEP.12 - receive & verify proof | STEP.13 - receive proof ACK |
+|  | STEP.10 - receive credential ACK |  |
+| proof | STEP.11 - request proof | STEP.12 - send proof |
+|  | STEP.13 - receive & verify proof | STEP.14 - receive proof ACK |
 
 When Alice starts, it automatically gets an invitation from Faber's `localhost:7201/invitations`. So, in a situation 
 where Faber is running normally, run Alice.
+
+### Demo with credential revocation
+Faber can revoke the issued credential. With below command, faber will revoke the issued credential before sending 
+proof request. You can see `Proof verification failed` log at faber side.
+```
+./gradlew faber_revoke
+```
+```
+./gradlew webhook_faber_revoke
+```

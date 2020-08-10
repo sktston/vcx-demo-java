@@ -194,7 +194,7 @@ public class GlobalService {
     }
 
     public void createInviation() throws Exception {
-        //STEP.1 - create connection F & send invitation
+        //STEP.1 - create invitation(connection) & send invitation
         log.info("#5 Create a connection to alice and return the invite details");
         int connectionHandle = ConnectionApi.vcxConnectionCreate("alice").get();
         ConnectionApi.vcxConnectionConnect(connectionHandle, "{}").get();
@@ -239,12 +239,12 @@ public class GlobalService {
         switch(type) {
             case "aries":
                 String innerType = JsonPath.read(payloadMessage,"$.@type");
-                // STEP.3 - update connection from F to F2A
+                // STEP.3 - accept connection request
                 if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/request")) {
                     log.info("- Case(aries, connections/1.0/request) -> acceptConnectionRequest");
                     acceptConnectionRequest(connectionHandle);
                 }
-                // STEP.5 - receive connection created ACK
+                // STEP.5 - receive connection ACK
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/notification/1.0/ack")){
                     log.info("- Case(aries, notification/1.0/ack) -> receiveConnectionAck & sendCredentialOffer");
                     receiveConnectionAck(connectionHandle, pwDid);
@@ -261,9 +261,12 @@ public class GlobalService {
                         revokeCredential(payloadMessage);
                     }
                 }
-                // STEP.10 - request proof
+                // STEP.10 - receive credential ACK
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/issue-credential/1.0/ack")) {
-                    log.info("- Case(aries ,issue-credential/1.0/ac) -> sendProofRequest");
+                    log.info("- Case(aries ,issue-credential/1.0/ack) -> receiveCredentialAck & sendProofRequest");
+                    // no logic for receiveCredentialAck in demo
+
+                    // STEP.11 - request proof
                     sendProofRequest(connectionHandle);
                 }
                 else {
@@ -271,7 +274,7 @@ public class GlobalService {
                 }
                 break;
             case "presentation":
-                // STEP.12 - receive & verify proof
+                // STEP.13 - receive & verify proof
                 log.info("- Case(presentation) -> verifyProof");
                 verifyProof(connectionHandle, payloadMessage);
                 break;

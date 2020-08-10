@@ -89,8 +89,7 @@ public class GlobalService {
     @EventListener(ApplicationReadyEvent.class)
     public void receiveInvitation() throws Exception {
 
-        // STEP.2 - receive invitation & create connection A2F
-        // accept invitation
+        // STEP.2 - receive invitation & request connection
         String details = requestGET(invitationUrl);
         log.info("details" + details);
 
@@ -133,12 +132,12 @@ public class GlobalService {
                     log.info("- Case(aries ,connections/1.0/response) -> sendConnectionAck");
                     sendConnectionAck(connectionHandle, pwDid);
                 }
-                // STEP.13 - receive proof ACK
+                // STEP.14 - receive proof ACK
                 else if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/present-proof/1.0/ack")){
                     log.info("- Case(aries ,present-proof/1.0/ack) -> receiveProofAck");
                     receiveProofAck(connectionHandle, payloadMessage);
                 }
-                // SETP.13-1 - receive problem-report (possibly the credential has been revoked)
+                // SETP.14-1 - receive problem-report (possibly the credential has been revoked)
                 else if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/report-problem/1.0/problem-report")){
                     log.info("- Case(aries ,report-problem/1.0/problem-report) -> printProblem");
                     log.info("comment: " + JsonPath.read(payloadMessage, "$.comment"));
@@ -147,7 +146,7 @@ public class GlobalService {
                     log.severe("Unknown innerType message in aries type");
                 }
                 break;
-            // STEP.7 - accept credential offer & request credential
+            // STEP.7 - check credential offer & request credential
             case "credential-offer":
                 log.info("- Case(credential-offer) -> sendCredentialRequest");
                 sendCredentialRequest(connectionHandle, pwDid, msgUid);
@@ -157,7 +156,7 @@ public class GlobalService {
                 log.info("- Case(credential) -> acceptCredential");
                 acceptCredential(connectionHandle, payloadMessage);
                 break;
-            // STEP.11 - send proof
+            // STEP.12 - send proof
             case "presentation-request":
                 log.info("- Case(presentation-request) -> sendProof");
                 sendProof(connectionHandle, pwDid, msgUid);
