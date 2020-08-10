@@ -37,8 +37,9 @@ public class GlobalService {
     static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
     static final String tailsServerUrl = "http://13.124.169.12";
 
-    // check faber or faber_revoke
-    static String enableRevoke = System.getenv().getOrDefault("ENABLE_REVOKE", "false");
+    // check options
+    static boolean enablePostgres = Boolean.parseBoolean(System.getenv().getOrDefault("ENABLE_POSTGRES", "false"));
+    static boolean enableRevoke = Boolean.parseBoolean(System.getenv().getOrDefault("ENABLE_REVOKE", "false"));
 
     @PostConstruct
     public void initialize() throws Exception {
@@ -59,6 +60,17 @@ public class GlobalService {
         // Communication method. aries.
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "4.0").jsonString();
         log.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
+
+        if (enablePostgres) {
+            Common.loadPostgresPlugin();
+            provisionConfig = JsonPath.parse(provisionConfig).put("$", "wallet_type", "postgres_storage")
+                    .put("$", "storage_config", "{\"url\":\"localhost:5432\"}")
+                    .put("$", "storage_credentials", "{\"account\":\"postgres\",\"password\":\"mysecretpassword\"," +
+                            "\"admin_account\":\"postgres\",\"admin_password\":\"mysecretpassword\"}").jsonString();
+            log.info("Running with PostreSQL wallet enabled! Config = " + JsonPath.read(provisionConfig, "$.storage_config"));
+        } else {
+            log.info("Running with builtin wallet.");
+        }
 
         // add webhook url to config
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "webhook_url", webhookUrl).jsonString();
@@ -244,7 +256,7 @@ public class GlobalService {
                 else if(innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/issue-credential/1.0/request-credential")) {
                     log.info("- Case(aries ,issue-credential/1.0/request-credential) -> sendCredential");
                     sendCredential(connectionHandle, payloadMessage);
-                    if (enableRevoke.equals("true")) {
+                    if (enableRevoke) {
                         log.info("#17-1 (Revoke enabled) Revoke the credential");
                         revokeCredential(payloadMessage);
                     }

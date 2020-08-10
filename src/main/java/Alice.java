@@ -6,8 +6,6 @@ import com.evernym.sdk.vcx.vcx.VcxApi;
 
 import com.jayway.jsonpath.JsonPath;
 
-import org.apache.commons.cli.CommandLine;
-
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.LinkedHashMap;
@@ -25,12 +23,12 @@ public class Alice {
     static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
     static final String tailsServerUrl = "http://13.124.169.12";
 
+    // check options
+    static boolean enablePostgres = Boolean.parseBoolean(System.getenv().getOrDefault("ENABLE_POSTGRES", "false"));
+
     public static void main(String[] args) throws Exception {
         // Library logger setup - ERROR|WARN|INFO|DEBUG|TRACE
         Common.setLibraryLogger("ERROR");
-
-        CommandLine options = Common.getCommandLine(args);
-        if (options == null) System.exit(0);
 
         log.info("#0 Initialize");
         Common.loadNullPayPlugin();
@@ -51,7 +49,7 @@ public class Alice {
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "4.0").jsonString();
         log.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
 
-        if (options.hasOption("postgres")) {
+        if (enablePostgres) {
             Common.loadPostgresPlugin();
             provisionConfig = JsonPath.parse(provisionConfig).put("$", "wallet_type", "postgres_storage")
                     .put("$", "storage_config", "{\"url\":\"localhost:5432\"}")

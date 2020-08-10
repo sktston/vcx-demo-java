@@ -33,6 +33,9 @@ public class GlobalService {
     static final String webhookUrl = "http://localhost:7202/notifications"; // alice (me)
     static final String invitationUrl = "http://localhost:7201/invitations"; // faber
 
+    // check options
+    static boolean enablePostgres = Boolean.parseBoolean(System.getenv().getOrDefault("ENABLE_POSTGRES", "false"));
+
     @PostConstruct
     public void initialize() throws Exception {
         log.info("#0 Initialize");
@@ -53,6 +56,17 @@ public class GlobalService {
         // Communication method. aries.
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "4.0").jsonString();
         log.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
+
+        if (enablePostgres) {
+            Common.loadPostgresPlugin();
+            provisionConfig = JsonPath.parse(provisionConfig).put("$", "wallet_type", "postgres_storage")
+                    .put("$", "storage_config", "{\"url\":\"localhost:5432\"}")
+                    .put("$", "storage_credentials", "{\"account\":\"postgres\",\"password\":\"mysecretpassword\"," +
+                            "\"admin_account\":\"postgres\",\"admin_password\":\"mysecretpassword\"}").jsonString();
+            log.info("Running with PostreSQL wallet enabled! Config = " + JsonPath.read(provisionConfig, "$.storage_config"));
+        } else {
+            log.info("Running with builtin wallet.");
+        }
 
         // add webhook url to config
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "webhook_url", webhookUrl).jsonString();
@@ -123,6 +137,11 @@ public class GlobalService {
                 else if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/present-proof/1.0/ack")){
                     log.info("- Case(aries ,present-proof/1.0/ack) -> receiveProofAck");
                     receiveProofAck(connectionHandle, payloadMessage);
+                }
+                // SETP.13-1 - receive problem-report (possibly the credential has been revoked)
+                else if (innerType.equals("did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/report-problem/1.0/problem-report")){
+                    log.info("- Case(aries ,report-problem/1.0/problem-report) -> printProblem");
+                    log.info("comment: " + JsonPath.read(payloadMessage, "$.comment"));
                 }
                 else {
                     log.severe("Unknown innerType message in aries type");

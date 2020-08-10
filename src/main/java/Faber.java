@@ -11,7 +11,6 @@ import com.evernym.sdk.vcx.vcx.VcxApi;
 import com.jayway.jsonpath.JsonPath;
 
 import okhttp3.*;
-import org.apache.commons.cli.CommandLine;
 
 import java.io.File;
 import java.util.LinkedHashMap;
@@ -30,12 +29,13 @@ public class Faber {
     static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
     static final String tailsServerUrl = "http://13.124.169.12";
 
+    // check options
+    static boolean enablePostgres = Boolean.parseBoolean(System.getenv().getOrDefault("ENABLE_POSTGRES", "false"));
+    static boolean enableRevoke = Boolean.parseBoolean(System.getenv().getOrDefault("ENABLE_REVOKE", "false"));
+
     public static void main(String[] args) throws Exception {
         // Library logger setup - ERROR|WARN|INFO|DEBUG|TRACE
         Common.setLibraryLogger("ERROR");
-
-        CommandLine options = Common.getCommandLine(args);
-        if (options == null) System.exit(0);
 
         log.info("#0 Initialize");
         Common.loadNullPayPlugin();
@@ -55,7 +55,7 @@ public class Faber {
         provisionConfig = JsonPath.parse(provisionConfig).put("$", "protocol_type", "4.0").jsonString();
         log.info("Running with Aries VCX Enabled! Make sure VCX agency is configured to use protocol_type 4.0");
 
-        if (options.hasOption("postgres")) {
+        if (enablePostgres) {
             Common.loadPostgresPlugin();
             provisionConfig = JsonPath.parse(provisionConfig).put("$", "wallet_type", "postgres_storage")
                     .put("$", "storage_config", "{\"url\":\"localhost:5432\"}")
@@ -199,7 +199,7 @@ public class Faber {
         log.info("#17 Issue credential to alice");
         IssuerApi.issuerSendCredential(credentialHandle, connectionHandle).get();
 
-        if (options.hasOption("revoke")) {
+        if (enableRevoke) {
             log.info("#17-1 (Revoke enabled) Revoke the credential");
             IssuerApi.issuerRevokeCredential(credentialHandle);
         }

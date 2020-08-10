@@ -8,9 +8,7 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import io.leonard.Base58;
 import okhttp3.*;
-import org.apache.commons.cli.*;
 
-import java.io.File;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -89,31 +87,6 @@ public class Common {
             throw new IllegalArgumentException("max must be greater than min");
         Random r = new Random();
         return r.nextInt((max - min) + 1) + min;
-    }
-
-    public static CommandLine getCommandLine(String[] args) {
-        Option help = new Option("h", "help", false, "Display this usage guide.");
-        Option postgres = new Option("p", "postgres", false,"If specified, postgres wallet will be used.");
-        Option revoke = new Option("r", "revoke", false,"If specified, the issued credential will be revoked.");
-
-        Options options = new Options();
-        options.addOption(help);
-        options.addOption(postgres);
-        options.addOption(revoke);
-
-        CommandLineParser parser = new DefaultParser();
-        try {
-            CommandLine line = parser.parse(options, args);
-            if(line.hasOption("help")) {
-                HelpFormatter formatter = new HelpFormatter();
-                formatter.printHelp( "task", options );
-                return null;
-            }
-            return line;
-        } catch (ParseException exp) {
-            System.err.println("Parsing failed. Reason: " + exp.getMessage());
-        }
-        return null;
     }
 
     public static String getUidWithMessages(String messages) {
