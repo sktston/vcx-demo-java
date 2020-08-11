@@ -28,7 +28,6 @@ public class GlobalService {
     // get logger for demo - INFO configured
     static final Logger log = Common.getDemoLogger();
     static final String tailsFileRoot = System.getProperty("user.home") + "/.indy_client/tails";
-    static final String tailsServerUrl = "http://13.124.169.12";
 
     static final String webhookUrl = "http://localhost:7202/notifications"; // alice (me)
     static final String invitationUrl = "http://localhost:7201/invitations"; // faber
@@ -220,6 +219,18 @@ public class GlobalService {
         int credentialState = CredentialApi.credentialUpdateState(credentialHandle).get();
         if (credentialState == VcxState.Accepted.getValue()) {
             log.info("#16 Accepted credential from faber");
+
+            // download tails file if not exist
+            serializedCredential = CredentialApi.credentialSerialize(credentialHandle).get();
+            String revRegDefJson = JsonPath.read(serializedCredential, "$.data.holder_sm.state.Finished.rev_reg_def_json");
+            String tailsFileDir = tailsFileRoot + "/" + JsonPath.read(revRegDefJson, "$.id");
+            String tailsFilePath = tailsFileDir + "/" + JsonPath.read(revRegDefJson, "$.value.tailsHash");
+            if (Files.notExists(Paths.get(tailsFilePath))) {
+                // get tails file from tails file server
+                byte[] fileContent = requestGETtoBytes(JsonPath.read(revRegDefJson, "$.value.tailsLocation"));
+                Files.createDirectory(Paths.get(tailsFileDir));
+                Files.write(Paths.get(tailsFilePath), fileContent);
+            }
         }
         else {
             log.severe("Unexpected state type");
@@ -254,21 +265,8 @@ public class GlobalService {
             String attr = JsonPath.parse((LinkedHashMap)JsonPath.read(credentials, "$.attrs." + key + ".[0]")).jsonString();
             credentials = JsonPath.parse(credentials).set("$.attrs." + key, JsonPath.parse("{\"credential\":"+ attr + "}").json()).jsonString();
 
-            // prepare tails file and add attribute
-            String revRegId = JsonPath.read(attr, "$.cred_info.rev_reg_id");
-            String tailsFileDir = tailsFileRoot + "/" + revRegId;
-            if (Files.notExists(Paths.get(tailsFileDir))) {
-                // get tails file from tails file server
-                byte[] fileContent = requestGETtoBytes(tailsServerUrl + "/" + revRegId);
-
-                // get file name by hashing
-                String tailsFileName = getHash(fileContent);
-
-                // write tails file into tailsFileDir
-                String tailsFilePath = tailsFileDir + "/" + tailsFileName;
-                Files.createDirectory(Paths.get(tailsFileDir));
-                Files.write(Paths.get(tailsFilePath), fileContent);
-            }
+            // add tails file attribute
+            String tailsFileDir = tailsFileRoot + "/" + JsonPath.read(attr, "$.cred_info.rev_reg_id");
             credentials = JsonPath.parse(credentials).put("$.attrs." + key, "tails_file", tailsFileDir).jsonString();
         }
 
