@@ -121,7 +121,7 @@ public class Alice {
         if (Files.notExists(Paths.get(tailsFilePath))) {
             // get tails file from tails file server
             byte[] fileContent = requestGETtoBytes(JsonPath.read(revRegDefJson, "$.value.tailsLocation"));
-            Files.createDirectory(Paths.get(tailsFileDir));
+            Files.createDirectories(Paths.get(tailsFileDir));
             Files.write(Paths.get(tailsFilePath), fileContent);
         }
 
